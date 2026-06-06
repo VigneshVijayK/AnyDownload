@@ -25,7 +25,8 @@ export default function Home() {
 
   const info = getPlatformInfo(platform);
 
-  const heroOpacity = fadeState === "visible" ? 1 : 0;
+  const heroOpacity = fadeState === "visible" ? 1 : 0.35;
+  const heroScale = fadeState === "visible" ? 1 : 0.96;
 
   useEffect(() => {
     return () => {
@@ -97,7 +98,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="relative z-10 w-full max-w-[720px] text-center" style={{ opacity: heroOpacity, transition: "opacity 0.2s ease" }}>
+        <div className="relative z-10 w-full max-w-[720px] text-center" style={{ opacity: heroOpacity, transform: `scale(${heroScale})`, transition: "opacity 0.22s ease, transform 0.22s ease" }}>
           <ScrollReveal delay={0}>
             <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 glass rounded-full text-[10px] sm:text-xs font-medium text-text-secondary mb-4 sm:mb-6">
               <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: info.color, transition: "color 0.5s ease" }}>

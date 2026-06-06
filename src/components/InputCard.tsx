@@ -96,12 +96,13 @@ export default function InputCard({ onFetch, loading, error, platform }: InputCa
 
   return (
     <div
-      className="glass rounded-2xl p-5 sm:p-7 mb-5"
+      className="glass rounded-2xl p-5 sm:p-7 mb-5 min-h-[280px] flex flex-col"
       style={{
         borderColor: displayError ? "#ff6b6b" : `color-mix(in srgb, ${accentColor} 25%, var(--glass-border))`,
       }}
     >
-      {platform === "instagram" && (
+      <div className="flex-1">
+        {platform === "instagram" && (
         <div className="flex gap-2 mb-4 sm:mb-5 rounded-[10px]" style={{ background: "var(--filter-bg)", padding: 4 }}>
           <button
             onClick={() => setInputMode("url")}
@@ -234,6 +235,8 @@ export default function InputCard({ onFetch, loading, error, platform }: InputCa
           {displayError}
         </div>
       )}
+
+      </div>
 
       <button
         onClick={handleSubmit}

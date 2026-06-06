@@ -35,11 +35,12 @@ function RelatedProfileCard({ p: { username, fullName, avatar, isVerified, isPri
 
 export default function ProfileHeader({ profile, accentColor = "#e1306c" }: Props) {
   const proxiedAvatar = `/api/proxy?mode=inline&url=${encodeURIComponent(profile.avatar)}`;
+  const downloadAvatar = `/api/proxy?mode=download&url=${encodeURIComponent(profile.avatar)}`;
 
   return (
     <div className="mb-8">
       <div className="flex flex-col sm:flex-row items-center gap-6 p-6 glass rounded-2xl">
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 group">
           <div
             className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-offset-2 transition-all duration-500"
             style={{
@@ -56,6 +57,18 @@ export default function ProfileHeader({ profile, accentColor = "#e1306c" }: Prop
               }}
             />
           </div>
+          <a
+            href={downloadAvatar}
+            download
+            className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-90"
+            style={{ background: accentColor, boxShadow: `0 2px 12px ${accentColor}66` }}
+            aria-label="Download profile picture"
+            title="Download profile picture"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </a>
           {profile.isVerified && (
             <span className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#0095f6] rounded-full flex items-center justify-center ring-2" style={{ "--tw-ring-color": "var(--bg-primary)" } as React.CSSProperties}>
               <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">

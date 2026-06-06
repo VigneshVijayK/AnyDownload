@@ -120,33 +120,52 @@ async function fetchProfileMedia(username: string) {
   const cached = cacheGet<{ items: MediaItem[]; nodes: RawNode[]; profile: any }>(cacheKey);
   if (cached) return cached;
 
-  const url = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
-
   if (!hasCurl()) {
     throw new Error("Curl is required but not found on this server. Install curl or use a VPS/Docker host.");
   }
 
-  const raw = await fetchWithCurl(url);
+  let user: any;
+  let allEdges: any[] = [];
+  let after: string | null = null;
+  const MAX_ITEMS = 50;
 
-  let data: any;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    throw new Error("Instagram returned an invalid response. They may be blocking automated requests. Try again later.");
+  const baseUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
+
+  for (let page = 0; page < 10; page++) {
+    const url = after ? `${baseUrl}&after=${encodeURIComponent(after)}` : baseUrl;
+    const raw = await fetchWithCurl(url);
+
+    let data: any;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error("Instagram returned an invalid response. They may be blocking automated requests.");
+    }
+
+    if (data?.message?.includes?.("Please wait a few minutes")) {
+      throw new Error("Instagram rate limit reached. Please wait a moment and try again.");
+    }
+
+    const pageUser = data?.data?.user;
+    if (!pageUser) {
+      if (page === 0) throw new Error("Could not find this user on Instagram.");
+      break;
+    }
+
+    if (page === 0) {
+      user = pageUser;
+    }
+
+    const media = pageUser.edge_owner_to_timeline_media;
+    if (!media) break;
+
+    const edges = media.edges ?? [];
+    allEdges = allEdges.concat(edges);
+
+    if (!media.page_info?.has_next_page || allEdges.length >= MAX_ITEMS) break;
+    after = media.page_info.end_cursor;
   }
-
-  if (data?.message?.includes?.("Please wait a few minutes")) {
-    throw new Error("Instagram rate limit reached. Please wait a moment and try again.");
-  }
-
-  const user = data?.data?.user;
-
-  if (!user) {
-    throw new Error("Could not find this user on Instagram.");
-  }
-
-  const edges = user.edge_owner_to_timeline_media?.edges ?? [];
-  const nodes: RawNode[] = edges.map((e: any) => e.node);
+  const nodes: RawNode[] = allEdges.map((e: any) => e.node);
   const items: MediaItem[] = [];
   for (const n of nodes) {
     const children = n.__typename === "GraphSidecar" ? n.edge_sidecar_to_children?.edges ?? [] : [];

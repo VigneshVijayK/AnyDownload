@@ -25,6 +25,8 @@ export default function Home() {
 
   const info = getPlatformInfo(platform);
 
+  const heroOpacity = fadeState === "visible" ? 1 : 0;
+
   const handlePlatformChange = useCallback((p: Platform) => {
     if (p === platform || fadeState !== "visible") return;
     setFadeState("fading");
@@ -89,33 +91,27 @@ export default function Home() {
           />
         </div>
 
-        <div className="relative z-10 w-full max-w-[720px] text-center">
-          <div key={platform} className="animate-fade-in">
-            <ScrollReveal delay={0}>
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 glass rounded-full text-[10px] sm:text-xs font-medium text-text-secondary mb-4 sm:mb-6">
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: info.color, transition: "color 0.5s ease" }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                {heroBadge}
-              </div>
-            </ScrollReveal>
-          </div>
+        <div className="relative z-10 w-full max-w-[720px] text-center" style={{ opacity: heroOpacity, transition: "opacity 0.2s ease" }}>
+          <ScrollReveal delay={0}>
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 glass rounded-full text-[10px] sm:text-xs font-medium text-text-secondary mb-4 sm:mb-6">
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: info.color, transition: "color 0.5s ease" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              {heroBadge}
+            </div>
+          </ScrollReveal>
 
-          <div key={`${platform}-title`} className="animate-fade-in">
-            <ScrollReveal delay={0.08}>
-              <h1 className="text-[clamp(28px,5vw,48px)] sm:text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-1px] sm:tracking-[-2px] text-text-primary mb-3 sm:mb-4">
-                {heroTitle}
-              </h1>
-            </ScrollReveal>
-          </div>
+          <ScrollReveal delay={0.08}>
+            <h1 className="text-[clamp(28px,5vw,48px)] sm:text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-1px] sm:tracking-[-2px] text-text-primary mb-3 sm:mb-4">
+              {heroTitle}
+            </h1>
+          </ScrollReveal>
 
-          <div key={`${platform}-sub`} className="animate-fade-in">
-            <ScrollReveal delay={0.16}>
-              <p className="text-sm sm:text-lg text-text-secondary max-w-[520px] sm:max-w-[560px] mx-auto mb-6 sm:mb-9 leading-relaxed px-2 sm:px-0">
-                {heroSubtitle}
-              </p>
-            </ScrollReveal>
-          </div>
+          <ScrollReveal delay={0.16}>
+            <p className="text-sm sm:text-lg text-text-secondary max-w-[520px] sm:max-w-[560px] mx-auto mb-6 sm:mb-9 leading-relaxed px-2 sm:px-0">
+              {heroSubtitle}
+            </p>
+          </ScrollReveal>
 
           <ScrollReveal delay={0.24}>
             <PlatformPicker selected={platform} onSelect={handlePlatformChange} />

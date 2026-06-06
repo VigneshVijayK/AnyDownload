@@ -1,10 +1,13 @@
+import type { Platform } from "@/lib/types";
+import { getPlatformInfo } from "@/lib/types";
+
 const features = [
   {
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
     ),
-    title: "Reels & Videos",
-    desc: "Download Reels and IGTV videos in original HD quality",
+    title: "Videos & Reels",
+    desc: "Download videos and reels from Instagram, YouTube, Facebook, and more",
   },
   {
     icon: (
@@ -15,19 +18,17 @@ const features = [
   },
   {
     icon: (
-      <>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-      </>
-    ),
-    title: "Stories & Highlights",
-    desc: "Download active stories and story highlights anonymously",
-  },
-  {
-    icon: (
       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     ),
     title: "Profile Pictures",
     desc: "Download profile pictures in full HD resolution",
+  },
+  {
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+    ),
+    title: "Multi-Platform",
+    desc: "Instagram, YouTube, X/Twitter, Facebook, and Threads all in one place",
   },
   {
     icon: (
@@ -45,31 +46,56 @@ const features = [
   },
 ];
 
-export default function Features() {
+type FeaturesProps = {
+  platform?: Platform;
+};
+
+export default function Features({ platform }: FeaturesProps) {
+  const info = platform ? getPlatformInfo(platform) : null;
+  const accentColor = info?.color || "#e1306c";
+
   return (
-    <section id="features" className="max-w-[1100px] mx-auto px-6 py-20">
-      <div className="text-center mb-14">
-        <h2 className="text-4xl font-bold text-white mb-3 tracking-tight">
-          Premium <span className="insta-gradient-text">Features</span>
+    <section id="features" className="w-full max-w-[1100px] mx-auto px-4 sm:px-6 py-16 sm:py-20">
+      <div className="text-center mb-10 sm:mb-14">
+        <h2 className="text-2xl sm:text-4xl font-bold text-text-primary mb-2 sm:mb-3 tracking-tight">
+          Premium <span style={{ color: accentColor }}>Features</span>
         </h2>
-        <p className="text-[rgba(255,255,255,0.65)] text-[17px]">
-          Everything you need to save Instagram content
+        <p className="text-text-secondary text-sm sm:text-[17px]">
+          Everything you need to save content from any platform
         </p>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
         {features.map((f) => (
           <div
             key={f.title}
-            className="p-8 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-[16px] transition-all duration-300 hover:-translate-y-[3px] hover:border-[#e1306c] hover:shadow-[0_12px_40px_rgba(225,48,108,0.12)]"
+            className="p-5 sm:p-6 lg:p-8 rounded-[12px] sm:rounded-[16px] transition-all duration-500 hover:-translate-y-[2px] sm:hover:-translate-y-[3px]"
+            style={{
+              background: "var(--bg-card)",
+              border: `1px solid color-mix(in srgb, ${accentColor} 10%, var(--border))`,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = accentColor;
+              e.currentTarget.style.boxShadow = `0 12px 40px ${accentColor}18`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 10%, var(--border))`;
+              e.currentTarget.style.boxShadow = "none";
+            }}
           >
-            <div className="w-12 h-12 rounded-[10px] insta-gradient flex items-center justify-center text-white text-lg mb-[18px] shadow-[0_6px_20px_rgba(225,48,108,0.3)]">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-[8px] sm:rounded-[10px] flex items-center justify-center text-white mb-3 sm:mb-[18px] transition-all duration-500"
+              style={{
+                background: accentColor,
+                boxShadow: `0 6px 20px ${accentColor}44`,
+              }}
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 {f.icon}
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">{f.title}</h3>
-            <p className="text-[rgba(255,255,255,0.65)] text-sm leading-relaxed">{f.desc}</p>
+            <h3 className="text-base sm:text-lg font-semibold text-text-primary mb-1 sm:mb-2">{f.title}</h3>
+            <p className="text-text-secondary text-xs sm:text-sm leading-relaxed">{f.desc}</p>
           </div>
         ))}
       </div>

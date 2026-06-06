@@ -1,32 +1,89 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getPlatformInfo } from "@/lib/types";
+import type { Platform } from "@/lib/types";
 
-export default function Navbar() {
+type NavbarProps = {
+  platform?: Platform;
+};
+
+function ThemeToggle() {
+  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    setMounted(true);
+    const current = document.documentElement.getAttribute("data-theme") as "dark" | "light" || "dark";
+    setTheme(current);
+  }, []);
+
+  function toggle() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("theme", next); } catch {}
+  }
+
+  if (!mounted) return <div className="w-8 h-8 sm:w-9 sm:h-9" />;
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-[20px] bg-[rgba(10,10,15,0.7)] border-b border-[rgba(255,255,255,0.06)]">
-      <div className="max-w-[1200px] mx-auto px-6 py-[14px] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 no-underline">
-          <div className="w-[38px] h-[38px] rounded-[10px] insta-gradient flex items-center justify-center text-white text-lg shadow-[0_4px_15px_rgba(225,48,108,0.4)]">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px]">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+    <button
+      onClick={toggle}
+      type="button"
+      className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border-none rounded-lg bg-bg-card text-text-secondary cursor-pointer hover:text-text-primary hover:bg-bg-card-hover transition-all shrink-0"
+      aria-label="Toggle theme"
+    >
+      {theme === "dark" ? (
+        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ) : (
+        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+export default function Navbar({ platform }: NavbarProps) {
+  const info = platform ? getPlatformInfo(platform) : null;
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-[20px] border-b" style={{ background: "var(--nav-bg)", borderColor: "var(--nav-border)" }}>
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 sm:py-[14px] flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 no-underline">
+          <div
+            className="w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-[8px] sm:rounded-[10px] flex items-center justify-center text-white shadow-lg transition-all duration-500"
+            style={{
+              background: info?.color || "linear-gradient(135deg, #833ab4 0%, #e1306c 40%, #fd1d1d 70%, #fcaa45 100%)",
+              boxShadow: info ? `0 4px 20px ${info.color}55` : "0 4px 15px rgba(225,48,108,0.4)",
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]">
+              <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-xl font-bold tracking-tight text-white">
-            Insta<span className="insta-gradient-text">View</span>
+          <span className="text-base sm:text-xl font-bold tracking-tight text-text-primary">
+            Any <span style={{ color: info?.color || "#e1306c" }}>Download</span>
           </span>
         </Link>
 
-        <div className="hidden sm:flex gap-2">
-          <Link href="/" className="px-[18px] py-2 rounded-full text-sm font-medium text-white bg-[rgba(255,255,255,0.08)] no-underline transition-colors">
-            Home
-          </Link>
-          <a href="#how" className="px-[18px] py-2 rounded-full text-sm font-medium text-[rgba(255,255,255,0.65)] no-underline hover:text-white transition-colors">
-            How It Works
-          </a>
-          <a href="#features" className="px-[18px] py-2 rounded-full text-sm font-medium text-[rgba(255,255,255,0.65)] no-underline hover:text-white transition-colors">
-            Features
-          </a>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden sm:flex gap-2">
+            <Link href="/" className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-text-secondary bg-bg-card no-underline transition-colors hover:text-text-primary">
+              Home
+            </Link>
+            <a href="#how" className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-text-secondary no-underline transition-colors hover:text-text-primary">
+              How It Works
+            </a>
+            <a href="#features" className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-text-secondary no-underline transition-colors hover:text-text-primary">
+              Features
+            </a>
+          </div>
+          <ThemeToggle />
         </div>
       </div>
     </nav>

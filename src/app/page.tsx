@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { fetchMedia } from "@/lib/instagram";
-import type { MediaItem, ProfileInfo } from "@/lib/instagram";
+import { useState, useCallback } from "react";
+import { fetchMedia } from "@/lib/client";
+import type { MediaItem, ProfileInfo, Platform } from "@/lib/types";
+import { getPlatformInfo } from "@/lib/types";
 import Navbar from "@/components/Navbar";
 import InputCard from "@/components/InputCard";
+import PlatformPicker from "@/components/PlatformPicker";
 import ResultsGrid from "@/components/ResultsGrid";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
@@ -13,21 +15,29 @@ import Footer from "@/components/Footer";
 export default function Home() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
+  const [title, setTitle] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [singlePost, setSinglePost] = useState(false);
+  const [platform, setPlatform] = useState<Platform>("instagram");
 
-  async function handleFetch(type: string, id: string, username?: string) {
+  const info = getPlatformInfo(platform);
+
+  const handlePlatformChange = useCallback((p: Platform) => {
+    if (p !== platform) setPlatform(p);
+  }, [platform]);
+
+  async function handleFetch(plat: Platform, type: string, id: string, username?: string) {
     setLoading(true);
     setError(null);
     setItems([]);
     setProfile(null);
-    setSinglePost(type !== "profile");
+    setTitle("");
 
     try {
-      const result = await fetchMedia(type, id, username);
+      const result = await fetchMedia(plat, type, id, username);
       setItems(result.items);
       setProfile(result.profile ?? null);
+      setTitle(result.title ?? "");
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please check the link and try again.");
     } finally {
@@ -35,42 +45,63 @@ export default function Home() {
     }
   }
 
+  const heroBadge = `${info.name} Downloader`;
+  const heroTitle = (
+    <>
+      Download From <br className="hidden xs:block sm:hidden" />
+      <span style={{ color: info.color }}>{info.name}</span>
+    </>
+  );
+  const heroSubtitle = info.hint
+    ? `${info.hint} — paste any link and download in HD quality.`
+    : `Paste any ${info.name} link and download in HD quality.`;
+
   return (
     <>
-      <Navbar />
+      <Navbar platform={platform} />
 
-      <section className="min-h-screen flex items-center justify-center px-6 pt-[120px] pb-16 relative overflow-hidden">
+      <section className="min-h-dvh flex items-center justify-center px-4 sm:px-6 pt-[100px] sm:pt-[120px] pb-12 sm:pb-16 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-          <div className="absolute w-[600px] h-[600px] rounded-full bg-[#833ab4] opacity-40 blur-[120px] top-[-15%] left-[-10%] animate-[float_20s_ease-in-out_infinite]" />
-          <div className="absolute w-[500px] h-[500px] rounded-full bg-[#e1306c] opacity-40 blur-[120px] bottom-[-10%] right-[-10%] animate-[float_20s_ease-in-out_infinite_7s]" />
-          <div className="absolute w-[400px] h-[400px] rounded-full bg-[#fd1d1d] opacity-30 blur-[120px] top-[40%] left-1/2 -translate-x-1/2 animate-[float_20s_ease-in-out_infinite_14s]" />
+          <div
+            className="absolute w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] rounded-full opacity-40 blur-[100px] sm:blur-[120px] top-[-15%] left-[-10%] animate-[float_20s_ease-in-out_infinite] transition-colors duration-1000"
+            style={{ background: info.bgGlow[0] }}
+          />
+          <div
+            className="absolute w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full opacity-40 blur-[100px] sm:blur-[120px] bottom-[-10%] right-[-10%] animate-[float_20s_ease-in-out_infinite_7s] transition-colors duration-1000"
+            style={{ background: info.bgGlow[1] }}
+          />
+          <div
+            className="absolute w-[300px] sm:w-[400px] h-[300px] sm:h-[400px] rounded-full opacity-30 blur-[100px] sm:blur-[120px] top-[40%] left-1/2 -translate-x-1/2 animate-[float_20s_ease-in-out_infinite_14s] transition-colors duration-1000"
+            style={{ background: info.bgGlow[2] }}
+          />
         </div>
 
-        <div className="relative z-10 max-w-[720px] w-full text-center">
-          <div className="inline-flex items-center gap-2 px-5 py-2 glass rounded-full text-xs font-medium text-[rgba(255,255,255,0.65)] mb-6">
-            <svg className="w-3.5 h-3.5 text-[#e1306c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="relative z-10 w-full max-w-[720px] text-center">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 glass rounded-full text-[10px] sm:text-xs font-medium text-text-secondary mb-4 sm:mb-6">
+            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: info.color, transition: "color 0.5s ease" }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Instagram Downloader
+            {heroBadge}
           </div>
 
-          <h1 className="text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-2px] text-white mb-4">
-            Download Anything From<br />
-            <span className="insta-gradient-text">Instagram</span>
+          <h1 className="text-[clamp(28px,5vw,48px)] sm:text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-1px] sm:tracking-[-2px] text-text-primary mb-3 sm:mb-4">
+            {heroTitle}
           </h1>
 
-          <p className="text-lg text-[rgba(255,255,255,0.65)] max-w-[560px] mx-auto mb-9 leading-relaxed">
-            Posts, Reels, Stories, Highlights, Profiles — paste any Instagram link or username and download in HD quality.
+          <p className="text-sm sm:text-lg text-text-secondary max-w-[520px] sm:max-w-[560px] mx-auto mb-6 sm:mb-9 leading-relaxed px-2 sm:px-0">
+            {heroSubtitle}
           </p>
 
-          <InputCard onFetch={handleFetch} loading={loading} error={error} />
+          <PlatformPicker selected={platform} onSelect={handlePlatformChange} />
+
+          <InputCard onFetch={handleFetch} loading={loading} error={error} platform={platform} />
         </div>
       </section>
 
-      <ResultsGrid items={items} profile={profile} singlePost={singlePost} />
+      <ResultsGrid items={items} profile={profile} title={title} platform={platform} />
 
-      <HowItWorks />
-      <Features />
+      <HowItWorks platform={platform} />
+      <Features platform={platform} />
       <Footer />
     </>
   );

@@ -1,65 +1,77 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { fetchMedia } from "@/lib/instagram";
+import type { MediaItem, ProfileInfo } from "@/lib/instagram";
+import Navbar from "@/components/Navbar";
+import InputCard from "@/components/InputCard";
+import ResultsGrid from "@/components/ResultsGrid";
+import HowItWorks from "@/components/HowItWorks";
+import Features from "@/components/Features";
+import Footer from "@/components/Footer";
 
 export default function Home() {
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [profile, setProfile] = useState<ProfileInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [singlePost, setSinglePost] = useState(false);
+
+  async function handleFetch(type: string, id: string, username?: string) {
+    setLoading(true);
+    setError(null);
+    setItems([]);
+    setProfile(null);
+    setSinglePost(type !== "profile");
+
+    try {
+      const result = await fetchMedia(type, id, username);
+      setItems(result.items);
+      setProfile(result.profile ?? null);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please check the link and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <>
+      <Navbar />
+
+      <section className="min-h-screen flex items-center justify-center px-6 pt-[120px] pb-16 relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+          <div className="absolute w-[600px] h-[600px] rounded-full bg-[#833ab4] opacity-40 blur-[120px] top-[-15%] left-[-10%] animate-[float_20s_ease-in-out_infinite]" />
+          <div className="absolute w-[500px] h-[500px] rounded-full bg-[#e1306c] opacity-40 blur-[120px] bottom-[-10%] right-[-10%] animate-[float_20s_ease-in-out_infinite_7s]" />
+          <div className="absolute w-[400px] h-[400px] rounded-full bg-[#fd1d1d] opacity-30 blur-[120px] top-[40%] left-1/2 -translate-x-1/2 animate-[float_20s_ease-in-out_infinite_14s]" />
+        </div>
+
+        <div className="relative z-10 max-w-[720px] w-full text-center">
+          <div className="inline-flex items-center gap-2 px-5 py-2 glass rounded-full text-xs font-medium text-[rgba(255,255,255,0.65)] mb-6">
+            <svg className="w-3.5 h-3.5 text-[#e1306c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Instagram Downloader
+          </div>
+
+          <h1 className="text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-2px] text-white mb-4">
+            Download Anything From<br />
+            <span className="insta-gradient-text">Instagram</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+          <p className="text-lg text-[rgba(255,255,255,0.65)] max-w-[560px] mx-auto mb-9 leading-relaxed">
+            Posts, Reels, Stories, Highlights, Profiles — paste any Instagram link or username and download in HD quality.
           </p>
+
+          <InputCard onFetch={handleFetch} loading={loading} error={error} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+
+      <ResultsGrid items={items} profile={profile} singlePost={singlePost} />
+
+      <HowItWorks />
+      <Features />
+      <Footer />
+    </>
   );
 }

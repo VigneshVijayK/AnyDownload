@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { fetchMedia } from "@/lib/client";
 import type { MediaItem, ProfileInfo, Platform } from "@/lib/types";
 import { getPlatformInfo } from "@/lib/types";
@@ -26,6 +26,12 @@ export default function Home() {
   const info = getPlatformInfo(platform);
 
   const heroOpacity = fadeState === "visible" ? 1 : 0;
+
+  useEffect(() => {
+    return () => {
+      if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    };
+  }, []);
 
   const handlePlatformChange = useCallback((p: Platform) => {
     if (p === platform || fadeState !== "visible") return;
@@ -124,7 +130,7 @@ export default function Home() {
       </section>
 
       <ScrollReveal>
-        <ResultsGrid items={items} profile={profile} title={title} platform={platform} />
+        <ResultsGrid items={items} profile={profile} title={title} platform={platform} loading={loading} />
       </ScrollReveal>
 
       <ScrollReveal delay={0.1}>

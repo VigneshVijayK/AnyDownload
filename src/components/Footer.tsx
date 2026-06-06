@@ -9,7 +9,7 @@ export default function Footer() {
           Any Download
         </div>
         <p className="text-text-muted text-[10px] sm:text-xs leading-relaxed mb-2 px-2 sm:px-0">
-          Any Download is a free tool for downloading media from Instagram, YouTube, X/Twitter, Facebook, and Threads. We are not affiliated with any of these platforms.
+          Any Download is a free tool for downloading media from Instagram, YouTube, X/Twitter, and Facebook. We are not affiliated with any of these platforms.
         </p>
         <p className="text-text-muted text-[10px] sm:text-[11px]">&copy; 2026 Any Download. All rights reserved.</p>
       </div>

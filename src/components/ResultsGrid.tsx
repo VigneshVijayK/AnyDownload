@@ -200,7 +200,7 @@ export default function ResultsGrid({ items, profile, title, platform }: Results
           ) : !isYouTube ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {(singlePost ? items : filtered).map((item, i) => {
-                const isInstagram = item.thumbnail.includes("cdninstagram") || item.url.includes("cdninstagram");
+                const isInstagram = platform === "instagram";
                 const thumbnailSrc = isInstagram && item.thumbnail
                   ? `/api/proxy?mode=inline&url=${encodeURIComponent(item.thumbnail)}`
                   : (item.thumbnail || "/placeholder.svg");

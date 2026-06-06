@@ -3,7 +3,6 @@ import { downloadInstagram } from "@/lib/platforms/instagram";
 import { downloadYouTube } from "@/lib/platforms/youtube";
 import { downloadTwitter } from "@/lib/platforms/twitter";
 import { downloadFacebook } from "@/lib/platforms/facebook";
-import { downloadThreads } from "@/lib/platforms/threads";
 import type { Platform } from "@/lib/types";
 
 type InputBody = {
@@ -36,9 +35,6 @@ export async function POST(req: NextRequest) {
         break;
       case "facebook":
         result = await downloadFacebook({ type, id });
-        break;
-      case "threads":
-        result = await downloadThreads({ type, id });
         break;
       default:
         return NextResponse.json({ error: `Unknown platform: ${platform}` }, { status: 400 });

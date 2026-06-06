@@ -5,7 +5,6 @@ import { parseInstagramUrl, parseUsername } from "@/lib/instagram";
 import { parseYouTubeUrl } from "@/lib/youtube";
 import { parseTwitterUrl } from "@/lib/twitter";
 import { parseFacebookUrl } from "@/lib/facebook";
-import { parseThreadsUrl } from "@/lib/threads";
 import { PLATFORMS } from "@/lib/types";
 import type { Platform } from "@/lib/types";
 
@@ -45,9 +44,6 @@ export default function InputCard({ onFetch, loading, error, platform }: InputCa
 
     const fb = parseFacebookUrl(input);
     if (fb) return { platform: "facebook", ...fb };
-
-    const th = parseThreadsUrl(input);
-    if (th) return { platform: "threads", ...th };
 
     return null;
   }

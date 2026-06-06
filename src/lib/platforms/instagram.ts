@@ -235,6 +235,8 @@ async function resolvePostOwner(shortcode: string, mediaType: string = "post"): 
 
 export type InstagramInput = { type: string; id: string; username?: string };
 
+export { resolvePostOwner, fetchProfileMedia };
+
 export async function downloadInstagram(input: InstagramInput) {
   const { type, id, username } = input;
 

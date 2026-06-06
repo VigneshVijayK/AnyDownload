@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
   }
   const decoded = decodeURIComponent(url);
   const mode = req.nextUrl.searchParams.get("mode") || "download";
+  const referer = "https://www.instagram.com/";
 
   if (!hasCurl()) {
     return NextResponse.json({ error: "Curl not available on this server" }, { status: 500 });
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
       `curl -sS --max-time 30 "${decoded}" \
         -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
         -H "Accept: image/*,video/*,*/*" \
-        -H "Referer: https://www.instagram.com/" \
+        -H "Referer: ${referer}" \
         -w "${SEP}%{content_type}"`,
       { timeout: 35000, maxBuffer: 50 * 1024 * 1024, encoding: "buffer" }
     );
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
           Accept: "image/*,video/*,*/*",
-          Referer: "https://www.instagram.com/",
+          Referer: referer,
         },
       });
       if (res.ok) {

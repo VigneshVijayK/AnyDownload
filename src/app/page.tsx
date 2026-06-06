@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { fetchMedia } from "@/lib/client";
 import type { MediaItem, ProfileInfo, Platform } from "@/lib/types";
 import { getPlatformInfo } from "@/lib/types";
@@ -11,6 +11,7 @@ import ResultsGrid from "@/components/ResultsGrid";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
 import Footer from "@/components/Footer";
+import ScrollReveal from "@/components/ScrollReveal";
 
 export default function Home() {
   const [items, setItems] = useState<MediaItem[]>([]);
@@ -19,12 +20,24 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [platform, setPlatform] = useState<Platform>("instagram");
+  const [fadeState, setFadeState] = useState<"visible" | "fading" | "hidden">("visible");
+  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const info = getPlatformInfo(platform);
 
   const handlePlatformChange = useCallback((p: Platform) => {
-    if (p !== platform) setPlatform(p);
-  }, [platform]);
+    if (p === platform || fadeState !== "visible") return;
+    setFadeState("fading");
+    fadeTimer.current = setTimeout(() => {
+      setPlatform(p);
+      setFadeState("hidden");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setFadeState("visible");
+        });
+      });
+    }, 180);
+  }, [platform, fadeState]);
 
   async function handleFetch(plat: Platform, type: string, id: string, username?: string) {
     setLoading(true);
@@ -77,31 +90,55 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 w-full max-w-[720px] text-center">
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 glass rounded-full text-[10px] sm:text-xs font-medium text-text-secondary mb-4 sm:mb-6">
-            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: info.color, transition: "color 0.5s ease" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            {heroBadge}
+          <div key={platform} className="animate-fade-in">
+            <ScrollReveal delay={0}>
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 glass rounded-full text-[10px] sm:text-xs font-medium text-text-secondary mb-4 sm:mb-6">
+                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: info.color, transition: "color 0.5s ease" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                {heroBadge}
+              </div>
+            </ScrollReveal>
           </div>
 
-          <h1 className="text-[clamp(28px,5vw,48px)] sm:text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-1px] sm:tracking-[-2px] text-text-primary mb-3 sm:mb-4">
-            {heroTitle}
-          </h1>
+          <div key={`${platform}-title`} className="animate-fade-in">
+            <ScrollReveal delay={0.08}>
+              <h1 className="text-[clamp(28px,5vw,48px)] sm:text-[clamp(36px,6vw,64px)] font-extrabold leading-[1.12] tracking-[-1px] sm:tracking-[-2px] text-text-primary mb-3 sm:mb-4">
+                {heroTitle}
+              </h1>
+            </ScrollReveal>
+          </div>
 
-          <p className="text-sm sm:text-lg text-text-secondary max-w-[520px] sm:max-w-[560px] mx-auto mb-6 sm:mb-9 leading-relaxed px-2 sm:px-0">
-            {heroSubtitle}
-          </p>
+          <div key={`${platform}-sub`} className="animate-fade-in">
+            <ScrollReveal delay={0.16}>
+              <p className="text-sm sm:text-lg text-text-secondary max-w-[520px] sm:max-w-[560px] mx-auto mb-6 sm:mb-9 leading-relaxed px-2 sm:px-0">
+                {heroSubtitle}
+              </p>
+            </ScrollReveal>
+          </div>
 
-          <PlatformPicker selected={platform} onSelect={handlePlatformChange} />
+          <ScrollReveal delay={0.24}>
+            <PlatformPicker selected={platform} onSelect={handlePlatformChange} />
+          </ScrollReveal>
 
-          <InputCard onFetch={handleFetch} loading={loading} error={error} platform={platform} />
+          <ScrollReveal delay={0.32}>
+            <InputCard onFetch={handleFetch} loading={loading} error={error} platform={platform} />
+          </ScrollReveal>
         </div>
       </section>
 
-      <ResultsGrid items={items} profile={profile} title={title} platform={platform} />
+      <ScrollReveal>
+        <ResultsGrid items={items} profile={profile} title={title} platform={platform} />
+      </ScrollReveal>
 
-      <HowItWorks platform={platform} />
-      <Features platform={platform} />
+      <ScrollReveal delay={0.1}>
+        <HowItWorks platform={platform} />
+      </ScrollReveal>
+
+      <ScrollReveal delay={0.15}>
+        <Features platform={platform} />
+      </ScrollReveal>
+
       <Footer />
     </>
   );

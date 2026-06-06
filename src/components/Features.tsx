@@ -1,5 +1,8 @@
+"use client";
+
 import type { Platform } from "@/lib/types";
 import { getPlatformInfo } from "@/lib/types";
+import ScrollReveal from "@/components/ScrollReveal";
 
 const features = [
   {
@@ -28,7 +31,7 @@ const features = [
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
     ),
     title: "Multi-Platform",
-    desc: "Instagram, YouTube, X/Twitter, Facebook, and Threads all in one place",
+    desc: "Instagram, YouTube, X/Twitter, and Facebook all in one place",
   },
   {
     icon: (
@@ -56,47 +59,50 @@ export default function Features({ platform }: FeaturesProps) {
 
   return (
     <section id="features" className="w-full max-w-[1100px] mx-auto px-4 sm:px-6 py-16 sm:py-20">
-      <div className="text-center mb-10 sm:mb-14">
-        <h2 className="text-2xl sm:text-4xl font-bold text-text-primary mb-2 sm:mb-3 tracking-tight">
-          Premium <span style={{ color: accentColor }}>Features</span>
-        </h2>
-        <p className="text-text-secondary text-sm sm:text-[17px]">
-          Everything you need to save content from any platform
-        </p>
-      </div>
+      <ScrollReveal>
+        <div className="text-center mb-10 sm:mb-14">
+          <h2 className="text-2xl sm:text-4xl font-bold text-text-primary mb-2 sm:mb-3 tracking-tight">
+            Premium <span style={{ color: accentColor }}>Features</span>
+          </h2>
+          <p className="text-text-secondary text-sm sm:text-[17px]">
+            Everything you need to save content from any platform
+          </p>
+        </div>
+      </ScrollReveal>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
-        {features.map((f) => (
-          <div
-            key={f.title}
-            className="p-5 sm:p-6 lg:p-8 rounded-[12px] sm:rounded-[16px] transition-all duration-500 hover:-translate-y-[2px] sm:hover:-translate-y-[3px]"
-            style={{
-              background: "var(--bg-card)",
-              border: `1px solid color-mix(in srgb, ${accentColor} 10%, var(--border))`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = accentColor;
-              e.currentTarget.style.boxShadow = `0 12px 40px ${accentColor}18`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 10%, var(--border))`;
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
+        {features.map((f, i) => (
+          <ScrollReveal key={f.title} delay={i * 0.06}>
             <div
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-[8px] sm:rounded-[10px] flex items-center justify-center text-white mb-3 sm:mb-[18px] transition-all duration-500"
+              className="p-5 sm:p-6 lg:p-8 rounded-[12px] sm:rounded-[16px] transition-all duration-500 hover:-translate-y-[2px] sm:hover:-translate-y-[3px]"
               style={{
-                background: accentColor,
-                boxShadow: `0 6px 20px ${accentColor}44`,
+                background: "var(--bg-card)",
+                border: `1px solid color-mix(in srgb, ${accentColor} 10%, var(--border))`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = accentColor;
+                e.currentTarget.style.boxShadow = `0 12px 40px ${accentColor}18`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 10%, var(--border))`;
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                {f.icon}
-              </svg>
+              <div
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-[8px] sm:rounded-[10px] flex items-center justify-center text-white mb-3 sm:mb-[18px] transition-all duration-500"
+                style={{
+                  background: accentColor,
+                  boxShadow: `0 6px 20px ${accentColor}44`,
+                }}
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {f.icon}
+                </svg>
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-text-primary mb-1 sm:mb-2">{f.title}</h3>
+              <p className="text-text-secondary text-xs sm:text-sm leading-relaxed">{f.desc}</p>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold text-text-primary mb-1 sm:mb-2">{f.title}</h3>
-            <p className="text-text-secondary text-xs sm:text-sm leading-relaxed">{f.desc}</p>
-          </div>
+          </ScrollReveal>
         ))}
       </div>
     </section>

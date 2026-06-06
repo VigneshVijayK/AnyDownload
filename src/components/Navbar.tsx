@@ -32,7 +32,7 @@ function ThemeToggle() {
     <button
       onClick={toggle}
       type="button"
-      className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border-none rounded-lg bg-bg-card text-text-secondary cursor-pointer hover:text-text-primary hover:bg-bg-card-hover transition-all shrink-0"
+      className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border-none rounded-lg bg-bg-card text-text-secondary cursor-pointer hover:text-text-primary hover:bg-bg-card-hover transition-all shrink-0 active:scale-90"
       aria-label="Toggle theme"
     >
       {theme === "dark" ? (
@@ -50,13 +50,35 @@ function ThemeToggle() {
 
 export default function Navbar({ platform }: NavbarProps) {
   const info = platform ? getPlatformInfo(platform) : null;
+  const [activeSection, setActiveSection] = useState("");
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        }
+      },
+      { threshold: 0.3, rootMargin: "-80px 0px 0px 0px" }
+    );
+
+    const sections = ["how", "features"];
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-[20px] border-b" style={{ background: "var(--nav-bg)", borderColor: "var(--nav-border)" }}>
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 sm:py-[14px] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 no-underline">
+        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 no-underline group">
           <div
-            className="w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-[8px] sm:rounded-[10px] flex items-center justify-center text-white shadow-lg transition-all duration-500"
+            className="w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-[8px] sm:rounded-[10px] flex items-center justify-center text-white shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:rotate-3"
             style={{
               background: info?.color || "linear-gradient(135deg, #833ab4 0%, #e1306c 40%, #fd1d1d 70%, #fcaa45 100%)",
               boxShadow: info ? `0 4px 20px ${info.color}55` : "0 4px 15px rgba(225,48,108,0.4)",
@@ -73,13 +95,40 @@ export default function Navbar({ platform }: NavbarProps) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden sm:flex gap-2">
-            <Link href="/" className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-text-secondary bg-bg-card no-underline transition-colors hover:text-text-primary">
+            <Link
+              href="/"
+              className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium no-underline transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{
+                color: "var(--text-secondary)",
+                background: "var(--bg-card)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-card-hover)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-card)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
+            >
               Home
             </Link>
-            <a href="#how" className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-text-secondary no-underline transition-colors hover:text-text-primary">
+            <a
+              href="#how"
+              className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium no-underline transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{
+                color: activeSection === "how" ? info?.color || "var(--text-primary)" : "var(--text-secondary)",
+                background: activeSection === "how" ? `${info?.color || "#e1306c"}18` : "var(--bg-card)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-card-hover)"; if (activeSection !== "how") e.currentTarget.style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { if (activeSection !== "how") { e.currentTarget.style.background = "var(--bg-card)"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
+            >
               How It Works
             </a>
-            <a href="#features" className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-text-secondary no-underline transition-colors hover:text-text-primary">
+            <a
+              href="#features"
+              className="px-3 sm:px-[18px] py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium no-underline transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{
+                color: activeSection === "features" ? info?.color || "var(--text-primary)" : "var(--text-secondary)",
+                background: activeSection === "features" ? `${info?.color || "#e1306c"}18` : "var(--bg-card)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-card-hover)"; if (activeSection !== "features") e.currentTarget.style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { if (activeSection !== "features") { e.currentTarget.style.background = "var(--bg-card)"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
+            >
               Features
             </a>
           </div>

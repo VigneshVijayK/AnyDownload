@@ -9,7 +9,7 @@ async function getInnertube(): Promise<Innertube> {
   if (!innertube) {
     innertube = await Innertube.create({
       lang: "en",
-      retrieve_player: false,
+      retrieve_player: true,
     });
   }
   return innertube;
@@ -67,8 +67,17 @@ function extractVideoId(input: string): string | null {
   return null;
 }
 
-function getFormatUrl(f: any): string | null {
+async function getFormatUrl(
+  f: any,
+  player: any,
+): Promise<string | null> {
   if (f.url) return f.url;
+
+  try {
+    const deciphered = await f.decipher(player);
+    if (deciphered) return deciphered;
+  } catch {}
+
   if (f.cipher) {
     try {
       const params = new URLSearchParams(f.cipher);
@@ -96,26 +105,30 @@ export async function downloadYouTube(input: YouTubeInput) {
   const yt = await getInnertube();
 
   let info;
-  try {
-    info = await yt.getInfo(videoId, { client: "ANDROID" });
-  } catch (err: any) {
-    const msg = err.message || "";
-    if (msg.toLowerCase().includes("private")) {
-      throw new Error("This video is private.");
+  const clients: ("ANDROID" | "IOS" | "WEB_EMBEDDED")[] = [
+    "ANDROID",
+    "IOS",
+    "WEB_EMBEDDED",
+  ];
+
+  for (const client of clients) {
+    try {
+      info = await yt.getInfo(videoId, { client });
+      if (
+        info?.streaming_data?.formats?.length ||
+        info?.streaming_data?.adaptive_formats?.length
+      ) {
+        break;
+      }
+    } catch {
+      continue;
     }
-    if (
-      msg.toLowerCase().includes("unavailable") ||
-      msg.toLowerCase().includes("not found")
-    ) {
-      throw new Error("This video is unavailable or does not exist.");
-    }
-    throw new Error(
-      msg || "Failed to fetch video info. YouTube may be blocking the request.",
-    );
   }
 
   if (!info?.basic_info) {
-    throw new Error("Could not get video information.");
+    throw new Error(
+      "Could not get video information. YouTube may be blocking the request.",
+    );
   }
 
   const title = info.basic_info.title || "YouTube Video";
@@ -125,6 +138,7 @@ export async function downloadYouTube(input: YouTubeInput) {
       ? thumbnails[thumbnails.length - 1].url
       : "";
 
+  const player = yt.session.player;
   const formats = info.streaming_data?.formats || [];
   const adaptive = info.streaming_data?.adaptive_formats || [];
 
@@ -137,7 +151,7 @@ export async function downloadYouTube(input: YouTubeInput) {
     .sort((a, b) => (b.height || 0) - (a.height || 0));
 
   for (const f of combined) {
-    const url = getFormatUrl(f);
+    const url = await getFormatUrl(f, player);
     if (!url || seenUrls.has(url)) continue;
 
     const res = f.height || 0;
@@ -153,6 +167,29 @@ export async function downloadYouTube(input: YouTubeInput) {
     }
   }
 
+  if (items.length === 0) {
+    const videoOnly = adaptive
+      .filter((f) => f.has_video)
+      .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+    for (const f of videoOnly) {
+      const url = await getFormatUrl(f, player);
+      if (!url || seenUrls.has(url)) continue;
+
+      const res = f.height || 0;
+      if (res > 0 && !seenResolutions.has(res)) {
+        seenResolutions.add(res);
+        seenUrls.add(url);
+        items.push({
+          type: "video",
+          thumbnail,
+          url,
+          label: `Video ${qualityLabel(f.quality_label, res)}`,
+        });
+      }
+    }
+  }
+
   const audio = adaptive
     .filter((f) => f.has_audio && !f.has_video)
     .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
@@ -160,7 +197,7 @@ export async function downloadYouTube(input: YouTubeInput) {
   for (const f of audio) {
     if (items.some((i) => i.label?.startsWith("MP3"))) break;
 
-    const url = getFormatUrl(f);
+    const url = await getFormatUrl(f, player);
     if (!url || seenUrls.has(url)) continue;
 
     seenUrls.add(url);
@@ -171,6 +208,21 @@ export async function downloadYouTube(input: YouTubeInput) {
       url,
       label: `MP3 (${bitrate}kbps)`,
     });
+  }
+
+  if (items.length === 0) {
+    const anyFormat = [...formats, ...adaptive].filter((f) => f.url);
+    for (const f of anyFormat) {
+      const url = await getFormatUrl(f, player);
+      if (!url || seenUrls.has(url)) continue;
+      seenUrls.add(url);
+      items.push({
+        type: "video",
+        thumbnail,
+        url,
+        label: f.has_video ? `Video` : `Audio`,
+      });
+    }
   }
 
   if (items.length === 0) {

@@ -9,7 +9,7 @@ async function getInnertube(): Promise<Innertube> {
   if (!innertube) {
     innertube = await Innertube.create({
       lang: "en",
-      retrieve_player: true,
+      retrieve_player: false,
     });
   }
   return innertube;
@@ -41,9 +41,7 @@ function extractVideoId(input: string): string | null {
     new RegExp(
       `(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/shorts\\/(${idPattern})`,
     ),
-    new RegExp(
-      `(?:https?:\\/\\/)?(?:www\\.)?youtu\\.be\\/(${idPattern})`,
-    ),
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtu\\.be\\/(${idPattern})`),
     new RegExp(
       `(?:https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/embed\\/(${idPattern})`,
     ),
@@ -69,11 +67,31 @@ function extractVideoId(input: string): string | null {
   return null;
 }
 
+function getFormatUrl(f: any): string | null {
+  if (f.url) return f.url;
+  if (f.cipher) {
+    try {
+      const params = new URLSearchParams(f.cipher);
+      const u = params.get("url");
+      if (u) return u;
+    } catch {}
+  }
+  if (f.signature_cipher) {
+    try {
+      const params = new URLSearchParams(f.signature_cipher);
+      const u = params.get("url");
+      if (u) return u;
+    } catch {}
+  }
+  return null;
+}
+
 export async function downloadYouTube(input: YouTubeInput) {
   const { id } = input;
 
   const videoId = extractVideoId(id);
-  if (!videoId) throw new Error("Could not recognize a YouTube video in that link.");
+  if (!videoId)
+    throw new Error("Could not recognize a YouTube video in that link.");
 
   const yt = await getInnertube();
 
@@ -107,7 +125,6 @@ export async function downloadYouTube(input: YouTubeInput) {
       ? thumbnails[thumbnails.length - 1].url
       : "";
 
-  const player = yt.session.player;
   const formats = info.streaming_data?.formats || [];
   const adaptive = info.streaming_data?.adaptive_formats || [];
 
@@ -120,8 +137,7 @@ export async function downloadYouTube(input: YouTubeInput) {
     .sort((a, b) => (b.height || 0) - (a.height || 0));
 
   for (const f of combined) {
-    let url = await f.decipher(player);
-    if (!url) url = f.url || "";
+    const url = getFormatUrl(f);
     if (!url || seenUrls.has(url)) continue;
 
     const res = f.height || 0;
@@ -144,8 +160,7 @@ export async function downloadYouTube(input: YouTubeInput) {
   for (const f of audio) {
     if (items.some((i) => i.label?.startsWith("MP3"))) break;
 
-    let url = await f.decipher(player);
-    if (!url) url = f.url || "";
+    const url = getFormatUrl(f);
     if (!url || seenUrls.has(url)) continue;
 
     seenUrls.add(url);

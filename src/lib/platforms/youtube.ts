@@ -4,121 +4,106 @@ import type { MediaItem } from "@/lib/types";
 
 export type YouTubeInput = { type: string; id: string };
 
-// ── yt-dlp ──────────────────────────────────────────────────────────
+// ── helpers ─────────────────────────────────────────────────────────
 
-function hasYtDlp(): boolean {
-  try {
-    execSync("yt-dlp --version", { stdio: "pipe", encoding: "utf-8" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const QUALITY_LABELS: Record<string, string> = {
-  "2160": "4K",
-  "1440": "1440p",
-  "1080": "1080p",
-  "720": "720p",
-  "480": "480p",
-  "360": "360p",
-  "240": "240p",
-  "144": "144p",
+const QUALITY: Record<string, string> = {
+  "2160": "4K", "1440": "1440p", "1080": "1080p", "720": "720p",
+  "480": "480p", "360": "360p", "240": "240p", "144": "144p",
 };
 
-async function fetchWithYtDlp(videoUrl: string) {
-  const out = execSync(
-    `yt-dlp -j --no-check-certificate "${videoUrl}"`,
-    { timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8" },
-  );
-  const data = JSON.parse(out);
-  if (!data) throw new Error("Could not retrieve video info.");
-
-  const thumbnail = data.thumbnail || "";
-  const title = data.title || "YouTube Video";
-  const formats: any[] = data.formats || [];
-
-  const seenRes = new Set<number>();
-  const items: MediaItem[] = [];
-
-  const combined = formats
-    .filter((f: any) => f.url && f.height && parseInt(f.height) > 0 && f.acodec && f.acodec !== "none")
-    .sort((a: any, b: any) => (parseInt(b.height) || 0) - (parseInt(a.height) || 0));
-
-  for (const f of combined) {
-    const res = parseInt(f.height) || 0;
-    if (res > 0 && !seenRes.has(res)) {
-      seenRes.add(res);
-      items.push({
-        type: "video",
-        thumbnail,
-        url: f.url,
-        label: `Video ${QUALITY_LABELS[String(res)] || `${res}p`}`,
-      });
-    }
-  }
-
-  const audio = formats
-    .filter((f: any) => (f.acodec && f.acodec !== "none") && (!f.vcodec || f.vcodec === "none") && f.url)
-    .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
-
-  if (audio.length > 0) {
-    items.push({
-      type: "video",
-      thumbnail,
-      url: audio[0].url,
-      label: `MP3 (${audio[0].abr || 128}kbps)`,
-    });
-  }
-
-  return { items, title };
-}
-
-// ── youtubei.js fallback ────────────────────────────────────────────
-
-let innertube: Innertube | null = null;
-
-async function getInnertube(): Promise<Innertube> {
-  if (!innertube) {
-    innertube = await Innertube.create({ lang: "en", retrieve_player: true });
-  }
-  return innertube;
+function qLabel(l: string | undefined, h: number): string {
+  return l || QUALITY[String(h)] || `${h}p`;
 }
 
 function extractVideoId(input: string): string | null {
-  const idPattern = "[a-zA-Z0-9_-]{10,12}";
-  const patterns = [
-    new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.|music\\.)?youtube\\.com\\/watch\\?v=(${idPattern})`),
-    new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/shorts\\/(${idPattern})`),
-    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtu\\.be\\/(${idPattern})`),
-    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/embed\\/(${idPattern})`),
-    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/live\\/(${idPattern})`),
-    new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/v\\/(${idPattern})`),
-    new RegExp(`^(${idPattern})$`),
+  const p = "[a-zA-Z0-9_-]{10,12}";
+  const r = [
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.|music\\.)?youtube\\.com\\/watch\\?v=(${p})`),
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/shorts\\/(${p})`),
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtu\\.be\\/(${p})`),
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/embed\\/(${p})`),
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/live\\/(${p})`),
+    new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/v\\/(${p})`),
+    new RegExp(`^(${p})$`),
   ];
-  for (const p of patterns) {
-    const m = input.match(p);
-    if (m) return m[1];
-  }
-  if (input.includes("youtube.com") || input.includes("youtu.be")) {
+  for (const re of r) { const m = input.match(re); if (m) return m[1]; }
+  if (/youtube\.com|youtu\.be/.test(input)) {
     const m = input.match(/[?&]v=([a-zA-Z0-9_-]{10,12})/);
     if (m) return m[1];
   }
   return null;
 }
 
+// ── Strategy 1: yt-dlp ─────────────────────────────────────────────
+
+function hasYtDlp(): boolean {
+  try { execSync("yt-dlp --version", { stdio: "pipe", encoding: "utf-8" }); return true; } catch { return false; }
+}
+
+async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  try {
+    const raw = execSync(`yt-dlp -j --no-check-certificate "${videoUrl}"`, {
+      timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
+    });
+    const data = JSON.parse(raw);
+    if (!data?.formats) return null;
+
+    const thumbnail = data.thumbnail || "";
+    const title = data.title || "YouTube Video";
+    const seen = new Set<number>();
+    const items: MediaItem[] = [];
+
+    for (const f of (data.formats || []).sort((a: any, b: any) => (parseInt(b.height) || 0) - (parseInt(a.height) || 0))) {
+      if (!f.url || !f.height || !f.acodec || f.acodec === "none") continue;
+      const res = parseInt(f.height);
+      if (res > 0 && !seen.has(res)) { seen.add(res); items.push({ type: "video", thumbnail, url: f.url, label: `Video ${QUALITY[String(res)] || `${res}p`}` }); }
+    }
+
+    const audio = (data.formats || []).filter((f: any) => f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none") && f.url)
+      .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
+    if (audio.length) items.push({ type: "video", thumbnail, url: audio[0].url, label: `MP3 (${audio[0].abr || 128}kbps)` });
+
+    return items.length ? { items, title } : null;
+  } catch { return null; }
+}
+
+// ── Strategy 2: youtubei.js ─────────────────────────────────────────
+
+let innertube: Innertube | null = null;
+
+async function getYt(): Promise<Innertube> {
+  if (!innertube) innertube = await Innertube.create({ lang: "en", retrieve_player: true });
+  return innertube;
+}
+
+async function tryYoutubeJs(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  try {
+    const yt = await getYt();
+    for (const client of ["ANDROID", "IOS", "WEB_EMBEDDED"] as const) {
+      try {
+        const info = await yt.getInfo(videoId, { client });
+        const sd = info?.streaming_data;
+        if (!sd?.formats?.length && !sd?.adaptive_formats?.length) continue;
+
+        const title = info.basic_info?.title || "YouTube Video";
+        const thumbs = info.basic_info?.thumbnail;
+        const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
+        const player = yt.session.player;
+
+        const items = await buildItems(sd!.formats || [], sd!.adaptive_formats || [], player, thumbnail);
+        if (items.length) return { items, title };
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
 async function buildItems(formats: any[], adaptive: any[], player: any, thumbnail: string): Promise<MediaItem[]> {
   const getUrl = async (f: any): Promise<string | null> => {
     if (f.url) return f.url;
-    if (player) {
-      try { const d = await f.decipher(player); if (d) return d; } catch {}
-    }
-    for (const key of ["cipher", "signature_cipher"]) {
-      try {
-        const p = new URLSearchParams(f[key]);
-        const u = p.get("url");
-        if (u) return u;
-      } catch {}
+    if (player) { try { const d = await f.decipher(player); if (d) return d; } catch {} }
+    for (const k of ["cipher", "signature_cipher"]) {
+      try { const p = new URLSearchParams(f[k]); const u = p.get("url"); if (u) return u; } catch {}
     }
     return null;
   };
@@ -134,17 +119,25 @@ async function buildItems(formats: any[], adaptive: any[], player: any, thumbnai
     const url = await getUrl(f);
     if (!url || seenUrls.has(url)) continue;
     const res = f.height || 0;
-    if (res > 0 && !seenRes.has(res)) { seenRes.add(res); seenUrls.add(url); items.push({ type: "video", thumbnail, url, label: `Video ${QUALITY_LABELS[String(res)] || `${res}p`}` }); }
+    if (res > 0 && !seenRes.has(res)) { seenRes.add(res); seenUrls.add(url); items.push({ type: "video", thumbnail, url, label: `Video ${qLabel(f.quality_label, res)}` }); }
   }
 
   if (!items.length) {
-    const videoOnly = (adaptive || []).filter((f: any) => f.has_video !== false)
-      .sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
-    for (const f of videoOnly) {
+    const vo = (adaptive || []).filter((f: any) => f.has_video !== false).sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
+    for (const f of vo) {
       const url = await getUrl(f);
       if (!url || seenUrls.has(url)) continue;
       const res = f.height || 0;
-      if (res > 0 && !seenRes.has(res)) { seenRes.add(res); seenUrls.add(url); items.push({ type: "video", thumbnail, url, label: `Video ${QUALITY_LABELS[String(res)] || `${res}p`}` }); }
+      if (res > 0 && !seenRes.has(res)) { seenRes.add(res); seenUrls.add(url); items.push({ type: "video", thumbnail, url, label: `Video ${qLabel(f.quality_label, res)}` }); }
+    }
+  }
+
+  if (!items.length) {
+    for (const f of [...(formats || []), ...(adaptive || [])].filter((f: any) => f.url)) {
+      const url = await getUrl(f);
+      if (!url || seenUrls.has(url)) continue;
+      seenUrls.add(url);
+      items.push({ type: "video", thumbnail, url, label: f.has_video ? "Video" : "Audio" });
     }
   }
 
@@ -162,6 +155,51 @@ async function buildItems(formats: any[], adaptive: any[], player: any, thumbnai
   return items;
 }
 
+// ── Strategy 3: direct InnerTube API ────────────────────────────────
+
+const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+
+async function tryDirectApi(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  const clients: [string, string][] = [
+    ["ANDROID", "19.09.37"], ["IOS", "19.09.37"], ["WEB_EMBEDDED", "1.20240311.00.00"],
+  ];
+  for (const [name, ver] of clients) {
+    try {
+      const res = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_KEY}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36",
+        },
+        body: JSON.stringify({
+          context: { client: { clientName: name, clientVersion: ver, hl: "en", gl: "US" } },
+          videoId, racyCheckOk: true, contentCheckOk: true,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const sd = data?.streamingData;
+      if (!sd?.formats?.length && !sd?.adaptiveFormats?.length) continue;
+
+      const title = data?.videoDetails?.title || "YouTube Video";
+      const thumbs = data?.videoDetails?.thumbnail?.thumbnails;
+      const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
+
+      const mapF = (f: any) => ({
+        url: f.url, height: f.height, bitrate: f.bitrate,
+        quality_label: f.qualityLabel,
+        has_video: f.mimeType?.startsWith("video/"),
+        has_audio: f.mimeType?.startsWith("audio/") || !!f.audioQuality,
+      });
+
+      const items = await buildItems((sd.formats || []).map(mapF), (sd.adaptiveFormats || []).map(mapF), null, thumbnail);
+      if (items.length) return { items, title };
+    } catch {}
+  }
+  return null;
+}
+
 // ── Main ────────────────────────────────────────────────────────────
 
 export async function downloadYouTube(input: YouTubeInput) {
@@ -171,31 +209,17 @@ export async function downloadYouTube(input: YouTubeInput) {
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // Strategy 1: yt-dlp (most reliable)
-  if (hasYtDlp()) {
-    return await fetchWithYtDlp(videoUrl);
-  }
+  // Try yt-dlp
+  const ytDlpResult = hasYtDlp() ? await tryYtDlp(videoUrl) : null;
+  if (ytDlpResult) return ytDlpResult;
 
-  // Strategy 2: youtubei.js
-  try {
-    const yt = await getInnertube();
-    for (const client of ["ANDROID", "IOS", "WEB_EMBEDDED"] as const) {
-      try {
-        const info = await yt.getInfo(videoId, { client });
-        const sd = info?.streaming_data;
-        if (!sd?.formats?.length && !sd?.adaptive_formats?.length) continue;
-        const title = info.basic_info?.title || "YouTube Video";
-        const thumbs = info.basic_info?.thumbnail;
-        const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
-        const items = await buildItems(sd!.formats || [], sd!.adaptive_formats || [], yt.session.player, thumbnail);
-        if (items.length > 0) return { items, title };
-      } catch {}
-    }
-  } catch {}
+  // Fallback: youtubei.js
+  const ytJsResult = await tryYoutubeJs(videoId);
+  if (ytJsResult) return ytJsResult;
 
-  throw new Error(
-    hasYtDlp()
-      ? "yt-dlp failed to extract video. Try a different video."
-      : "yt-dlp is not installed on this server. Install with: pip install yt-dlp",
-  );
+  // Fallback: direct InnerTube API
+  const directResult = await tryDirectApi(videoId);
+  if (directResult) return directResult;
+
+  throw new Error("Could not extract a downloadable URL for this video.");
 }

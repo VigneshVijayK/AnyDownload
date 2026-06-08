@@ -1,4 +1,6 @@
 import { execSync } from "child_process";
+import { existsSync } from "fs";
+import { join } from "path";
 import { Innertube } from "youtubei.js";
 import type { MediaItem } from "@/lib/types";
 
@@ -36,13 +38,17 @@ function extractVideoId(input: string): string | null {
 
 // ── Strategy 1: yt-dlp ─────────────────────────────────────────────
 
+const YT_DLP = existsSync(join(process.cwd(), "bin", "yt-dlp"))
+  ? join(process.cwd(), "bin", "yt-dlp")
+  : "yt-dlp";
+
 function hasYtDlp(): boolean {
-  try { execSync("yt-dlp --version", { stdio: "pipe", encoding: "utf-8" }); return true; } catch { return false; }
+  try { execSync(`${YT_DLP} --version`, { stdio: "pipe", encoding: "utf-8" }); return true; } catch { return false; }
 }
 
 async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: string } | null> {
   try {
-    const raw = execSync(`yt-dlp -j --no-check-certificate "${videoUrl}"`, {
+    const raw = execSync(`${YT_DLP} -j --no-check-certificate "${videoUrl}"`, {
       timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
     });
     const data = JSON.parse(raw);

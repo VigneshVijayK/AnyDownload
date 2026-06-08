@@ -92,9 +92,8 @@ async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: 
   ];
   for (const client of clients) {
     try {
-      const nodePath = process.execPath;
       const args = client ? `--extractor-args "${client}"` : "";
-      const raw = execSync(`${ytDlp} --js-runtimes node:${nodePath} -j --no-check-certificate ${args} "${videoUrl}"`, {
+      const raw = execSync(`${ytDlp} -j --no-check-certificate ${args} "${videoUrl}"`, {
         timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
       });
       const data = JSON.parse(raw);
@@ -306,22 +305,31 @@ export async function downloadYouTube(input: YouTubeInput) {
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
+  console.log("[YT] Trying strategies for", videoId);
+
   await ensureYtDlp();
 
-  const r1 = await tryYtDlp(videoUrl);
-  if (r1) return r1;
+  const strategies = [
+    ["Piped", () => tryPiped(videoId)],
+    ["Invidious", () => tryInvidious(videoId)],
+    ["yt-dlp", () => tryYtDlp(videoUrl)],
+    ["youtubei.js", () => tryYoutubeJs(videoId)],
+    ["Direct API", () => tryDirectApi(videoId)],
+  ] as const;
 
-  const r2 = await tryYoutubeJs(videoId);
-  if (r2) return r2;
-
-  const r3 = await tryDirectApi(videoId);
-  if (r3) return r3;
-
-  const r4 = await tryPiped(videoId);
-  if (r4) return r4;
-
-  const r5 = await tryInvidious(videoId);
-  if (r5) return r5;
+  for (const [name, fn] of strategies) {
+    console.log(`[YT] Trying ${name}...`);
+    try {
+      const result = await fn();
+      if (result) {
+        console.log(`[YT] ${name} succeeded`);
+        return result;
+      }
+      console.log(`[YT] ${name} returned nothing`);
+    } catch (e) {
+      console.log(`[YT] ${name} threw:`, (e as Error)?.message || e);
+    }
+  }
 
   throw new Error("Could not extract a downloadable URL for this video.");
 }

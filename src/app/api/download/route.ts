@@ -6,7 +6,7 @@ import { downloadFacebook } from "@/lib/platforms/facebook";
 import type { Platform } from "@/lib/types";
 
 type InputBody = {
-  platform: Platform;
+  platform: string;
   type: string;
   id: string;
   username?: string;

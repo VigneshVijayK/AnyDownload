@@ -21,6 +21,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [fadeState, setFadeState] = useState<"visible" | "fading" | "hidden">("visible");
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const info = getPlatformInfo(platform);
@@ -29,9 +30,11 @@ export default function Home() {
   const heroScale = fadeState === "visible" ? 1 : 0.96;
 
   useEffect(() => {
-    return () => {
-      if (fadeTimer.current) clearTimeout(fadeTimer.current);
-    };
+    function onMove(e: MouseEvent) {
+      setMousePos({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
+    }
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => { window.removeEventListener("mousemove", onMove); if (fadeTimer.current) clearTimeout(fadeTimer.current); };
   }, []);
 
   const handlePlatformChange = useCallback((p: Platform) => {
@@ -85,16 +88,31 @@ export default function Home() {
       <section className="min-h-dvh flex items-center justify-center px-4 sm:px-6 pt-[100px] sm:pt-[120px] pb-12 sm:pb-16 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
           <div
-            className="absolute w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] rounded-full opacity-40 blur-[100px] sm:blur-[120px] top-[-15%] left-[-10%] animate-[float_20s_ease-in-out_infinite] transition-colors duration-1000"
-            style={{ background: info.bgGlow[0] }}
+            className="absolute w-[600px] h-[600px] rounded-full opacity-30 blur-[120px] transition-all duration-700 ease-out"
+            style={{
+              background: info.bgGlow[0],
+              left: `${mousePos.x * 100}%`,
+              top: `${mousePos.y * 100}%`,
+              transform: "translate(-50%, -50%)",
+            }}
           />
           <div
-            className="absolute w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full opacity-40 blur-[100px] sm:blur-[120px] bottom-[-10%] right-[-10%] animate-[float_20s_ease-in-out_infinite_7s] transition-colors duration-1000"
-            style={{ background: info.bgGlow[1] }}
+            className="absolute w-[400px] h-[400px] rounded-full opacity-20 blur-[100px] transition-all duration-1000 ease-out"
+            style={{
+              background: info.bgGlow[1],
+              left: `${(1 - mousePos.x) * 100}%`,
+              top: `${(1 - mousePos.y) * 100}%`,
+              transform: "translate(-50%, -50%)",
+            }}
           />
           <div
-            className="absolute w-[300px] sm:w-[400px] h-[300px] sm:h-[400px] rounded-full opacity-30 blur-[100px] sm:blur-[120px] top-[40%] left-1/2 -translate-x-1/2 animate-[float_20s_ease-in-out_infinite_14s] transition-colors duration-1000"
-            style={{ background: info.bgGlow[2] }}
+            className="absolute w-[800px] h-[800px] rounded-full opacity-15 blur-[150px] transition-all duration-500 ease-out"
+            style={{
+              background: info.bgGlow[2],
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
           />
         </div>
 

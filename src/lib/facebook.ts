@@ -1,5 +1,3 @@
-import type { Platform } from "@/lib/types";
-
 export type ParsedFacebookInput = { type: "video"; id: string } | null;
 
 export function parseFacebookUrl(url: string): ParsedFacebookInput {
@@ -25,7 +23,7 @@ export function parseFacebookUrl(url: string): ParsedFacebookInput {
   return null;
 }
 
-export function parseFacebookPlatform(url: string): { platform: Platform; type: string; id: string } | null {
+export function parseFacebookPlatform(url: string): { platform: string; type: string; id: string } | null {
   const parsed = parseFacebookUrl(url);
   if (!parsed) return null;
   return { platform: "facebook", ...parsed };

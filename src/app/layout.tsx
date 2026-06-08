@@ -8,9 +8,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Any Download — Multi-Platform Media Downloader",
+  title: "Any Download — Media Downloader",
   description:
-    "Download media from Instagram, YouTube, X/Twitter, Facebook, and Threads. Free and no login required.",
+    "Download media from Instagram and X/Twitter. Free and no login required.",
 };
 
 export default function RootLayout({

@@ -2,9 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { parseInstagramUrl, parseUsername } from "@/lib/instagram";
-import { parseYouTubeUrl } from "@/lib/youtube";
 import { parseTwitterUrl } from "@/lib/twitter";
-import { parseFacebookUrl } from "@/lib/facebook";
 import { PLATFORMS } from "@/lib/types";
 import type { Platform } from "@/lib/types";
 
@@ -36,14 +34,8 @@ export default function InputCard({ onFetch, loading, error, platform }: InputCa
     const ig = parseInstagramUrl(input);
     if (ig) return { platform: "instagram", ...ig };
 
-    const yt = parseYouTubeUrl(input);
-    if (yt) return { platform: "youtube", ...yt };
-
     const tw = parseTwitterUrl(input);
     if (tw) return { platform: "twitter", ...tw };
-
-    const fb = parseFacebookUrl(input);
-    if (fb) return { platform: "facebook", ...fb };
 
     return null;
   }

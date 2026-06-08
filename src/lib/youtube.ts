@@ -1,5 +1,3 @@
-import type { Platform } from "@/lib/types";
-
 export type ParsedYouTubeInput = { type: "video"; id: string } | null;
 
 export function parseYouTubeUrl(url: string): ParsedYouTubeInput {
@@ -30,7 +28,7 @@ export function parseYouTubeUrl(url: string): ParsedYouTubeInput {
   return null;
 }
 
-export function parseYouTubePlatform(url: string): { platform: Platform; type: string; id: string } | null {
+export function parseYouTubePlatform(url: string): { platform: string; type: string; id: string } | null {
   const parsed = parseYouTubeUrl(url);
   if (!parsed) return null;
   return { platform: "youtube", ...parsed };

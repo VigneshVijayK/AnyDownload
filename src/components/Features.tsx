@@ -10,7 +10,7 @@ const features = [
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
     ),
     title: "Videos & Reels",
-    desc: "Download videos and reels from Instagram, YouTube, Facebook, and more",
+    desc: "Download videos and reels from Instagram and X/Twitter",
   },
   {
     icon: (
@@ -31,7 +31,7 @@ const features = [
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
     ),
     title: "Multi-Platform",
-    desc: "Instagram, YouTube, X/Twitter, and Facebook all in one place",
+    desc: "Instagram and X/Twitter — all in one place",
   },
   {
     icon: (

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { VERSION } from "@/lib/version";
 
-const UPI_URL = "upi://pay?pa=vignesh.1604-4@waicici&pn=Developer&tn=Support+Development&am=1&cu=INR";
+const UPI_ID = "vigneshvijayk@iob";
+const UPI_URL = `upi://pay?pa=${UPI_ID}&pn=Developer&tn=Support+Development&am=1&cu=INR`;
 
 export default function Footer() {
   const [showQr, setShowQr] = useState(false);
@@ -21,11 +22,12 @@ export default function Footer() {
   }, [showQr, qrDataUrl]);
 
   function handleCoffeeClick() {
-    if (window.innerWidth < 768) {
-      window.location.href = UPI_URL;
-    } else {
-      setShowQr(true);
-    }
+    setShowQr(true);
+  }
+
+  function handleCopyUpiId() {
+    navigator.clipboard.writeText(UPI_ID);
+    alert("UPI ID copied!");
   }
 
   return (
@@ -52,8 +54,16 @@ export default function Footer() {
                 </div>
               )}
             </div>
-            <p className="text-xs font-semibold text-text-primary mb-1">Scan to support</p>
-            <p className="text-[11px] text-text-muted break-all mb-3">vignesh.1604-4@waicici</p>
+            <p className="text-xs font-semibold text-text-primary mb-1">Scan QR or copy UPI ID</p>
+            <p className="text-[11px] text-text-muted break-all mb-2">{UPI_ID}</p>
+            <button
+              onClick={handleCopyUpiId}
+              type="button"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-300 hover:brightness-110 mb-3"
+              style={{ background: "var(--bg-card)", color: "var(--text-secondary)" }}
+            >
+              Copy UPI ID
+            </button>
             <button
               onClick={() => setShowQr(false)}
               type="button"

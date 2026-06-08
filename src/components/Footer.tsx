@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
+import { VERSION } from "@/lib/version";
 
 const UPI_URL = "upi://pay?pa=8590011604@iob&pn=Developer&tn=Support+Development&cu=INR";
 
@@ -109,6 +110,7 @@ export default function Footer() {
           </button>
 
           <p className="text-text-muted text-[10px] sm:text-[11px]">&copy; 2026 Any Download. All rights reserved.</p>
+          <p className="text-text-muted text-[9px] sm:text-[10px] mt-1 opacity-60">{VERSION}</p>
         </div>
       </footer>
     </>

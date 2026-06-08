@@ -66,88 +66,60 @@ function extractVideoId(input: string): string | null {
   return null;
 }
 
-async function getUrlFromFormat(f: any, player: any): Promise<string | null> {
-  if (f.url) return f.url;
-  try {
-    const d = await f.decipher(player);
-    if (d) return d;
-  } catch {}
-  for (const key of ["cipher", "signature_cipher"]) {
-    try {
-      const params = new URLSearchParams(f[key]);
-      const u = params.get("url");
-      if (u) return u;
-    } catch {}
-  }
-  return null;
-}
-
-interface RawFormat {
-  url?: string;
-  mimeType?: string;
-  width?: number;
-  height?: number;
-  bitrate?: number;
-  contentLength?: string;
-  qualityLabel?: string;
-  audioQuality?: string;
-  hasVideo?: boolean;
-  hasAudio?: boolean;
-  fps?: number;
-}
-
-async function fetchWithInnerTube(
+async function directInnerTube(
   videoId: string,
-): Promise<{ formats: RawFormat[]; adaptiveFormats: RawFormat[] } | null> {
+  clientName: string,
+  clientVersion: string,
+): Promise<{
+  formats: any[];
+  adaptiveFormats: any[];
+  title: string;
+  thumbnail: string;
+} | null> {
   try {
+    const context = {
+      client: { clientName, clientVersion, hl: "en", gl: "US" },
+    };
+    const body = JSON.stringify({ context, videoId, racyCheckOk: true, contentCheckOk: true });
     const res = await fetch(INNERTUBE_URL + "?key=" + INNERTUBE_API_KEY, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: "ANDROID",
-            clientVersion: "19.09.37",
-            androidSdkVersion: 31,
-          },
-        },
-        videoId,
-      }),
-      signal: AbortSignal.timeout(15000),
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.165 Mobile Safari/537.36",
+      },
+      body,
+      signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) return null;
     const data = await res.json();
-    if (data?.playabilityStatus?.status !== "OK") return null;
-    const sd = data.streamingData;
-    if (!sd) return null;
-    const formats: RawFormat[] = (sd.formats || []).map((f: any) => ({
+    const sd = data?.streamingData;
+    if (!sd?.formats && !sd?.adaptiveFormats) return null;
+
+    const title =
+      data?.videoDetails?.title || data?.microformat?.playerMicroformatRenderer?.title?.simpleText || "YouTube Video";
+    const thumbs = data?.videoDetails?.thumbnail?.thumbnails;
+    const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
+
+    const mapFormat = (f: any) => ({
       url: f.url,
       mimeType: f.mimeType,
       width: f.width,
       height: f.height,
       bitrate: f.bitrate,
-      contentLength: f.contentLength,
       qualityLabel: f.qualityLabel,
-      hasVideo: true,
-      hasAudio: true,
+      contentLength: f.contentLength,
+      has_video: f.mimeType?.startsWith("video/"),
+      has_audio: f.mimeType?.startsWith("audio/") || f.audioQuality != null,
       fps: f.fps,
-    }));
-    const adaptiveFormats: RawFormat[] = (sd.adaptiveFormats || []).map(
-      (f: any) => ({
-        url: f.url,
-        mimeType: f.mimeType,
-        width: f.width,
-        height: f.height,
-        bitrate: f.bitrate,
-        contentLength: f.contentLength,
-        qualityLabel: f.qualityLabel,
-        audioQuality: f.audioQuality,
-        hasVideo: f.mimeType?.startsWith("video/"),
-        hasAudio: f.mimeType?.startsWith("audio/"),
-        fps: f.fps,
-      }),
-    );
-    return { formats, adaptiveFormats };
+    });
+
+    return {
+      formats: (sd.formats || []).map(mapFormat),
+      adaptiveFormats: (sd.adaptiveFormats || []).map(mapFormat),
+      title,
+      thumbnail,
+    };
   } catch {
     return null;
   }
@@ -156,81 +128,92 @@ async function fetchWithInnerTube(
 export async function downloadYouTube(input: YouTubeInput) {
   const { id } = input;
   const videoId = extractVideoId(id);
-  if (!videoId)
-    throw new Error("Could not recognize a YouTube video in that link.");
+  if (!videoId) throw new Error("Could not recognize a YouTube video in that link.");
 
-  let title = "YouTube Video";
-  let thumbnail = "";
-  let formats: any[] = [];
-  let adaptive: any[] = [];
-
-  // Try youtubei.js first
+  // Strategy 1: youtubei.js
   try {
     const yt = await getInnertube();
-    const clients: ("ANDROID" | "IOS" | "WEB_EMBEDDED")[] = [
-      "ANDROID",
-      "IOS",
-      "WEB_EMBEDDED",
-    ];
-    let info;
-    for (const client of clients) {
+    for (const client of ["ANDROID", "IOS", "WEB_EMBEDDED"] as const) {
       try {
-        info = await yt.getInfo(videoId, { client });
-        if (
-          info?.streaming_data?.formats?.length ||
-          info?.streaming_data?.adaptive_formats?.length
-        ) {
-          break;
-        }
-      } catch {
-        continue;
-      }
-    }
-    if (info?.basic_info) {
-      title = info.basic_info.title || title;
-      const thumbs = info.basic_info.thumbnail;
-      if (thumbs?.length) thumbnail = thumbs[thumbs.length - 1].url;
-    }
-    if (info?.streaming_data) {
-      formats = info.streaming_data.formats || [];
-      adaptive = info.streaming_data.adaptive_formats || [];
-    }
-    const player = yt.session.player;
+        const info = await yt.getInfo(videoId, { client });
+        const sd = info?.streaming_data;
+        const ps = (info as any)?.playability_status;
+        if (ps) console.error(`[youtubei.js ${client}] playability:`, ps.status, ps.reason);
+        if (sd) console.error(`[youtubei.js ${client}] formats:`, sd.formats?.length, "adaptive:", sd.adaptive_formats?.length);
+        if (!sd?.formats?.length && !sd?.adaptive_formats?.length)
+          continue;
 
-    const items = buildItems(formats, adaptive, player, thumbnail);
-    if (items.length > 0) return { items, title };
+        const title = info.basic_info?.title || "YouTube Video";
+        const thumbs = info.basic_info?.thumbnail;
+        const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
+        const player = yt.session.player;
+
+        const items = await buildItems(
+          sd!.formats || [],
+          sd!.adaptive_formats || [],
+          player,
+          thumbnail,
+        );
+        if (items.length > 0) return { items, title };
+      } catch {}
+    }
   } catch (e) {
-    console.error("youtubei.js failed, trying direct InnerTube API:", e);
+    console.error("youtubei.js failed:", e);
   }
 
-  // Fallback: direct InnerTube API
-  const fallback = await fetchWithInnerTube(videoId);
-  if (fallback) {
-    formats = fallback.formats;
-    adaptive = fallback.adaptiveFormats;
-    const items = buildItems(formats, adaptive, null, thumbnail);
+  // Strategy 2: direct InnerTube API (multiple clients)
+  const clients: [string, string][] = [
+    ["ANDROID", "19.09.37"],
+    ["IOS", "19.09.37"],
+    ["WEB_EMBEDDED", "1.20240311.00.00"],
+  ];
+  for (const [clientName, clientVersion] of clients) {
+    const result = await directInnerTube(videoId, clientName, clientVersion);
+    if (!result) continue;
+    const { formats, adaptiveFormats, title, thumbnail } = result;
+    const items = await buildItems(formats, adaptiveFormats, null, thumbnail);
     if (items.length > 0) return { items, title };
   }
 
   throw new Error("Could not extract a downloadable URL for this video.");
 }
 
-function buildItems(
+async function buildItems(
   formats: any[],
   adaptive: any[],
   player: any,
   thumbnail: string,
-): MediaItem[] {
+): Promise<MediaItem[]> {
+  const getUrl = async (f: any): Promise<string | null> => {
+    if (f.url) return f.url;
+    if (player) {
+      try {
+        const d = await f.decipher(player);
+        if (d) return d;
+      } catch {}
+    }
+    for (const key of ["cipher", "signature_cipher"]) {
+      try {
+        const params = new URLSearchParams(f[key]);
+        const u = params.get("url");
+        if (u) return u;
+      } catch {}
+    }
+    return null;
+  };
+
   const seenResolutions = new Set<number>();
   const seenUrls = new Set<string>();
   const items: MediaItem[] = [];
 
-  const combined = formats
+  const byHeight = (a: any, b: any) => (b.height || 0) - (a.height || 0);
+
+  const combined = (formats || [])
     .filter((f) => f.has_video !== false && f.has_audio !== false)
-    .sort((a, b) => (b.height || 0) - (a.height || 0));
+    .sort(byHeight);
 
   for (const f of combined) {
-    const url = f.url;
+    const url = await getUrl(f);
     if (!url || seenUrls.has(url)) continue;
     const res = f.height || 0;
     if (res > 0 && !seenResolutions.has(res)) {
@@ -246,11 +229,11 @@ function buildItems(
   }
 
   if (items.length === 0) {
-    const videoOnly = adaptive
+    const videoOnly = (adaptive || [])
       .filter((f) => f.has_video !== false)
-      .sort((a, b) => (b.height || 0) - (a.height || 0));
+      .sort(byHeight);
     for (const f of videoOnly) {
-      const url = f.url;
+      const url = await getUrl(f);
       if (!url || seenUrls.has(url)) continue;
       const res = f.height || 0;
       if (res > 0 && !seenResolutions.has(res)) {
@@ -266,13 +249,30 @@ function buildItems(
     }
   }
 
-  const audio = adaptive
+  if (items.length === 0) {
+    const anyFormat = [...(formats || []), ...(adaptive || [])].filter(
+      (f) => f.url,
+    );
+    for (const f of anyFormat) {
+      const url = await getUrl(f);
+      if (!url || seenUrls.has(url)) continue;
+      seenUrls.add(url);
+      items.push({
+        type: "video",
+        thumbnail,
+        url,
+        label: f.has_video ? "Video" : "Audio",
+      });
+    }
+  }
+
+  const audio = (adaptive || [])
     .filter((f) => f.has_audio !== false && f.has_video === false)
     .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
   for (const f of audio) {
     if (items.some((i) => i.label?.startsWith("MP3"))) break;
-    const url = f.url;
+    const url = await getUrl(f);
     if (!url || seenUrls.has(url)) continue;
     seenUrls.add(url);
     const bitrate = Math.round((f.bitrate || 128000) / 1000);

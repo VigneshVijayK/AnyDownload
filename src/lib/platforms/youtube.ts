@@ -92,8 +92,9 @@ async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: 
   ];
   for (const client of clients) {
     try {
+      const nodePath = process.execPath;
       const args = client ? `--extractor-args "${client}"` : "";
-      const raw = execSync(`${ytDlp} --js-runtimes node -j --no-check-certificate ${args} "${videoUrl}"`, {
+      const raw = execSync(`${ytDlp} --js-runtimes node:${nodePath} -j --no-check-certificate ${args} "${videoUrl}"`, {
         timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
       });
       const data = JSON.parse(raw);
@@ -223,38 +224,27 @@ async function tryDirectApi(videoId: string): Promise<{ items: MediaItem[]; titl
   return null;
 }
 
-// ── Strategy 4: Piped API (privacy-friendly YouTube frontend) ──────
+// ── Strategy 4: Piped API (third-party proxy, bypasses IP blocks) ──
 
 const PIPED_INSTANCES = [
   "https://pipedapi.kavin.rocks",
   "https://pipedapi.smnz.de",
   "https://pipedapi.adminforge.de",
+  "https://pipedapi.lunar.icu",
+  "https://pipedapi.privacydev.net",
 ];
-
-interface PipedStream {
-  url: string;
-  quality: string;
-  format: string;
-  mimeType: string;
-  videoOnly: boolean;
-  audioOnly: boolean;
-}
 
 async function tryPiped(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
   for (const base of PIPED_INSTANCES) {
     try {
-      const res = await fetch(`${base}/streams/${videoId}`, { signal: AbortSignal.timeout(10000) });
+      const res = await fetch(`${base}/streams/${videoId}`, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) continue;
       const data = await res.json();
-
       const title = data.title || "YouTube Video";
       const thumbnail = data.thumbnailUrl || "";
       const seen = new Set<string>();
       const items: MediaItem[] = [];
-
-      const streams: PipedStream[] = [...(data.videoStreams || []), ...(data.audioStreams || [])];
-
-      for (const s of streams) {
+      for (const s of [...(data.videoStreams || []), ...(data.audioStreams || [])]) {
         if (!s.url || seen.has(s.url)) continue;
         seen.add(s.url);
         if (s.audioOnly) {
@@ -264,9 +254,45 @@ async function tryPiped(videoId: string): Promise<{ items: MediaItem[]; title: s
           items.push({ type: "video", thumbnail, url: s.url, label: `Video ${s.quality || ""}` });
         }
       }
-
       if (items.length) return { items, title };
-    } catch {}
+    } catch (e) { console.log(`[PIPED] ${base} failed:`, (e as Error)?.message || e); }
+  }
+  return null;
+}
+
+// ── Strategy 5: Invidious API (alternative proxy frontend) ─────────
+
+const INVIDIOUS_INSTANCES = [
+  "https://inv.nadeko.net",
+  "https://invidious.snopyta.org",
+  "https://yewtu.be",
+  "https://inv.tux.pizza",
+  "https://invidious.privacydev.net",
+  "https://vid.puffyan.us",
+];
+
+async function tryInvidious(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  for (const base of INVIDIOUS_INSTANCES) {
+    try {
+      const res = await fetch(`${base}/api/v1/videos/${videoId}`, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const title = data.title || "YouTube Video";
+      const thumbs = data.videoThumbnails || [];
+      const thumbnail = thumbs.length ? thumbs[thumbs.length - 1].url : "";
+      const seen = new Set<string>();
+      const items: MediaItem[] = [];
+      for (const f of [...(data.formatStreams || []), ...(data.adaptiveFormats || [])]) {
+        if (!f.url || seen.has(f.url)) continue;
+        seen.add(f.url);
+        if (f.encoding?.startsWith("audio/") || f.type?.startsWith("audio/") || f.audioTrack) {
+          items.push({ type: "video", thumbnail, url: f.url, label: `MP3 (${Math.round((f.bitRate || 128000) / 1000)}kbps)` });
+        } else {
+          items.push({ type: "video", thumbnail, url: f.url, label: `Video ${f.qualityLabel || `${f.resolution || ""}`}` });
+        }
+      }
+      if (items.length) return { items, title };
+    } catch (e) { console.log(`[INVIDIOUS] ${base} failed:`, (e as Error)?.message || e); }
   }
   return null;
 }
@@ -280,24 +306,22 @@ export async function downloadYouTube(input: YouTubeInput) {
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // Try to get yt-dlp if missing
   await ensureYtDlp();
 
-  // Strategy 1: yt-dlp
   const r1 = await tryYtDlp(videoUrl);
   if (r1) return r1;
 
-  // Strategy 2: youtubei.js
   const r2 = await tryYoutubeJs(videoId);
   if (r2) return r2;
 
-  // Strategy 3: direct InnerTube API
   const r3 = await tryDirectApi(videoId);
   if (r3) return r3;
 
-  // Strategy 4: Piped API (third-party proxy, bypasses IP blocks)
   const r4 = await tryPiped(videoId);
   if (r4) return r4;
+
+  const r5 = await tryInvidious(videoId);
+  if (r5) return r5;
 
   throw new Error("Could not extract a downloadable URL for this video.");
 }

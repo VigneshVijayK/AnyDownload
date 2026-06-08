@@ -7,10 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "mkdir -p bin && curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o bin/yt-dlp && chmod +x bin/yt-dlp || true"
+    "postinstall": "node -e \"require('fs').existsSync('bin/yt-dlp')||require('child_process').execSync('mkdir -p bin && curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o bin/yt-dlp && chmod +x bin/yt-dlp',{stdio:'pipe',timeout:30000})\" || true"
   },
   "dependencies": {
-    "@distube/ytdl-core": "^4.16.12",
     "next": "16.2.6",
     "qrcode": "^1.5.4",
     "react": "19.2.4",

@@ -1,10 +1,54 @@
 import { execSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Innertube } from "youtubei.js";
 import type { MediaItem } from "@/lib/types";
 
 export type YouTubeInput = { type: string; id: string };
+
+const BIN_DIR = join(process.cwd(), "bin");
+const YT_DLP_PATH = join(BIN_DIR, "yt-dlp");
+
+// ── yt-dlp download + lookup ───────────────────────────────────────
+
+function findYtDlp(): string {
+  if (existsSync(YT_DLP_PATH)) return YT_DLP_PATH;
+  try { execSync("yt-dlp --version", { stdio: "pipe", encoding: "utf-8" }); return "yt-dlp"; } catch {}
+  return "";
+}
+
+// Try to download yt-dlp at runtime if missing
+async function ensureYtDlp(): Promise<boolean> {
+  if (findYtDlp()) return true;
+  try {
+    mkdirSync(BIN_DIR, { recursive: true });
+    const urls = [
+      "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux",
+      "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
+    ];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+        if (!res.ok || !res.body) continue;
+        const chunks: Uint8Array[] = [];
+        const reader = res.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const buf = new Uint8Array(
+          chunks.reduce((acc, c) => acc + c.length, 0),
+        );
+        let offset = 0;
+        for (const c of chunks) { buf.set(c, offset); offset += c.length; }
+        writeFileSync(YT_DLP_PATH, Buffer.from(buf), { mode: 0o755 });
+        return existsSync(YT_DLP_PATH);
+      } catch {}
+    }
+  } catch {}
+  return false;
+}
 
 // ── helpers ─────────────────────────────────────────────────────────
 
@@ -19,7 +63,7 @@ function qLabel(l: string | undefined, h: number): string {
 
 function extractVideoId(input: string): string | null {
   const p = "[a-zA-Z0-9_-]{10,12}";
-  const r = [
+  for (const re of [
     new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.|music\\.)?youtube\\.com\\/watch\\?v=(${p})`),
     new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/shorts\\/(${p})`),
     new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtu\\.be\\/(${p})`),
@@ -27,8 +71,7 @@ function extractVideoId(input: string): string | null {
     new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/live\\/(${p})`),
     new RegExp(`(?:https?:\\/\\/)?(?:www\\.|m\\.)?youtube\\.com\\/v\\/(${p})`),
     new RegExp(`^(${p})$`),
-  ];
-  for (const re of r) { const m = input.match(re); if (m) return m[1]; }
+  ]) { const m = input.match(re); if (m) return m[1]; }
   if (/youtube\.com|youtu\.be/.test(input)) {
     const m = input.match(/[?&]v=([a-zA-Z0-9_-]{10,12})/);
     if (m) return m[1];
@@ -38,17 +81,11 @@ function extractVideoId(input: string): string | null {
 
 // ── Strategy 1: yt-dlp ─────────────────────────────────────────────
 
-const YT_DLP = existsSync(join(process.cwd(), "bin", "yt-dlp"))
-  ? join(process.cwd(), "bin", "yt-dlp")
-  : "yt-dlp";
-
-function hasYtDlp(): boolean {
-  try { execSync(`${YT_DLP} --version`, { stdio: "pipe", encoding: "utf-8" }); return true; } catch { return false; }
-}
-
 async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  const ytDlp = findYtDlp();
+  if (!ytDlp) return null;
   try {
-    const raw = execSync(`${YT_DLP} -j --no-check-certificate "${videoUrl}"`, {
+    const raw = execSync(`${ytDlp} -j --no-check-certificate "${videoUrl}"`, {
       timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
     });
     const data = JSON.parse(raw);
@@ -82,28 +119,6 @@ async function getYt(): Promise<Innertube> {
   return innertube;
 }
 
-async function tryYoutubeJs(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
-  try {
-    const yt = await getYt();
-    for (const client of ["ANDROID", "IOS", "WEB_EMBEDDED"] as const) {
-      try {
-        const info = await yt.getInfo(videoId, { client });
-        const sd = info?.streaming_data;
-        if (!sd?.formats?.length && !sd?.adaptive_formats?.length) continue;
-
-        const title = info.basic_info?.title || "YouTube Video";
-        const thumbs = info.basic_info?.thumbnail;
-        const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
-        const player = yt.session.player;
-
-        const items = await buildItems(sd!.formats || [], sd!.adaptive_formats || [], player, thumbnail);
-        if (items.length) return { items, title };
-      } catch {}
-    }
-  } catch {}
-  return null;
-}
-
 async function buildItems(formats: any[], adaptive: any[], player: any, thumbnail: string): Promise<MediaItem[]> {
   const getUrl = async (f: any): Promise<string | null> => {
     if (f.url) return f.url;
@@ -113,15 +128,12 @@ async function buildItems(formats: any[], adaptive: any[], player: any, thumbnai
     }
     return null;
   };
-
   const seenRes = new Set<number>();
   const seenUrls = new Set<string>();
   const items: MediaItem[] = [];
 
-  const combined = (formats || []).filter((f: any) => f.has_video !== false && f.has_audio !== false)
-    .sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
-
-  for (const f of combined) {
+  for (const f of (formats || []).filter((f: any) => f.has_video !== false && f.has_audio !== false)
+    .sort((a: any, b: any) => (b.height || 0) - (a.height || 0))) {
     const url = await getUrl(f);
     if (!url || seenUrls.has(url)) continue;
     const res = f.height || 0;
@@ -129,8 +141,7 @@ async function buildItems(formats: any[], adaptive: any[], player: any, thumbnai
   }
 
   if (!items.length) {
-    const vo = (adaptive || []).filter((f: any) => f.has_video !== false).sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
-    for (const f of vo) {
+    for (const f of (adaptive || []).filter((f: any) => f.has_video !== false).sort((a: any, b: any) => (b.height || 0) - (a.height || 0))) {
       const url = await getUrl(f);
       if (!url || seenUrls.has(url)) continue;
       const res = f.height || 0;
@@ -147,23 +158,37 @@ async function buildItems(formats: any[], adaptive: any[], player: any, thumbnai
     }
   }
 
-  const audio = (adaptive || []).filter((f: any) => f.has_audio !== false && f.has_video === false)
-    .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
-
-  for (const f of audio) {
+  for (const f of (adaptive || []).filter((f: any) => f.has_audio !== false && f.has_video === false)
+    .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))) {
     if (items.some((i) => i.label?.startsWith("MP3"))) break;
     const url = await getUrl(f);
     if (!url || seenUrls.has(url)) continue;
     seenUrls.add(url);
     items.push({ type: "video", thumbnail, url, label: `MP3 (${Math.round((f.bitrate || 128000) / 1000)}kbps)` });
   }
-
   return items;
 }
 
-// ── Strategy 3: direct InnerTube API ────────────────────────────────
+async function tryYoutubeJs(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  try {
+    const yt = await getYt();
+    for (const client of ["ANDROID", "IOS", "WEB_EMBEDDED", "WEB"] as const) {
+      try {
+        const info = await yt.getInfo(videoId, { client });
+        const sd = info?.streaming_data;
+        if (!sd?.formats?.length && !sd?.adaptive_formats?.length) continue;
+        const title = info.basic_info?.title || "YouTube Video";
+        const thumbs = info.basic_info?.thumbnail;
+        const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
+        const items = await buildItems(sd!.formats || [], sd!.adaptive_formats || [], yt.session.player, thumbnail);
+        if (items.length) return { items, title };
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
 
-const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+// ── Strategy 3: direct InnerTube API ────────────────────────────────
 
 async function tryDirectApi(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
   const clients: [string, string][] = [
@@ -171,35 +196,69 @@ async function tryDirectApi(videoId: string): Promise<{ items: MediaItem[]; titl
   ];
   for (const [name, ver] of clients) {
     try {
-      const res = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_KEY}`, {
+      const res = await fetch(`https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36",
-        },
-        body: JSON.stringify({
-          context: { client: { clientName: name, clientVersion: ver, hl: "en", gl: "US" } },
-          videoId, racyCheckOk: true, contentCheckOk: true,
-        }),
+        headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36" },
+        body: JSON.stringify({ context: { client: { clientName: name, clientVersion: ver, hl: "en", gl: "US" } }, videoId, racyCheckOk: true, contentCheckOk: true }),
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) continue;
       const data = await res.json();
       const sd = data?.streamingData;
       if (!sd?.formats?.length && !sd?.adaptiveFormats?.length) continue;
-
       const title = data?.videoDetails?.title || "YouTube Video";
       const thumbs = data?.videoDetails?.thumbnail?.thumbnails;
       const thumbnail = thumbs?.length ? thumbs[thumbs.length - 1].url : "";
-
-      const mapF = (f: any) => ({
-        url: f.url, height: f.height, bitrate: f.bitrate,
-        quality_label: f.qualityLabel,
-        has_video: f.mimeType?.startsWith("video/"),
-        has_audio: f.mimeType?.startsWith("audio/") || !!f.audioQuality,
-      });
-
+      const mapF = (f: any) => ({ url: f.url, height: f.height, bitrate: f.bitrate, quality_label: f.qualityLabel, has_video: f.mimeType?.startsWith("video/"), has_audio: f.mimeType?.startsWith("audio/") || !!f.audioQuality });
       const items = await buildItems((sd.formats || []).map(mapF), (sd.adaptiveFormats || []).map(mapF), null, thumbnail);
+      if (items.length) return { items, title };
+    } catch {}
+  }
+  return null;
+}
+
+// ── Strategy 4: Piped API (privacy-friendly YouTube frontend) ──────
+
+const PIPED_INSTANCES = [
+  "https://pipedapi.kavin.rocks",
+  "https://pipedapi.smnz.de",
+  "https://pipedapi.adminforge.de",
+];
+
+interface PipedStream {
+  url: string;
+  quality: string;
+  format: string;
+  mimeType: string;
+  videoOnly: boolean;
+  audioOnly: boolean;
+}
+
+async function tryPiped(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
+  for (const base of PIPED_INSTANCES) {
+    try {
+      const res = await fetch(`${base}/streams/${videoId}`, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+
+      const title = data.title || "YouTube Video";
+      const thumbnail = data.thumbnailUrl || "";
+      const seen = new Set<string>();
+      const items: MediaItem[] = [];
+
+      const streams: PipedStream[] = [...(data.videoStreams || []), ...(data.audioStreams || [])];
+
+      for (const s of streams) {
+        if (!s.url || seen.has(s.url)) continue;
+        seen.add(s.url);
+        if (s.audioOnly) {
+          const bitrate = /(\d+)\s*kbps/.exec(s.quality);
+          items.push({ type: "video", thumbnail, url: s.url, label: `MP3 (${bitrate?.[1] || 128}kbps)` });
+        } else {
+          items.push({ type: "video", thumbnail, url: s.url, label: `Video ${s.quality || ""}` });
+        }
+      }
+
       if (items.length) return { items, title };
     } catch {}
   }
@@ -215,17 +274,24 @@ export async function downloadYouTube(input: YouTubeInput) {
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // Try yt-dlp
-  const ytDlpResult = hasYtDlp() ? await tryYtDlp(videoUrl) : null;
-  if (ytDlpResult) return ytDlpResult;
+  // Try to get yt-dlp if missing
+  await ensureYtDlp();
 
-  // Fallback: youtubei.js
-  const ytJsResult = await tryYoutubeJs(videoId);
-  if (ytJsResult) return ytJsResult;
+  // Strategy 1: yt-dlp
+  const r1 = await tryYtDlp(videoUrl);
+  if (r1) return r1;
 
-  // Fallback: direct InnerTube API
-  const directResult = await tryDirectApi(videoId);
-  if (directResult) return directResult;
+  // Strategy 2: youtubei.js
+  const r2 = await tryYoutubeJs(videoId);
+  if (r2) return r2;
+
+  // Strategy 3: direct InnerTube API
+  const r3 = await tryDirectApi(videoId);
+  if (r3) return r3;
+
+  // Strategy 4: Piped API (third-party proxy, bypasses IP blocks)
+  const r4 = await tryPiped(videoId);
+  if (r4) return r4;
 
   throw new Error("Could not extract a downloadable URL for this video.");
 }

@@ -8,6 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL || "https://anydownload.vercel.app"),
   title: "Any Download — Media Downloader",
   description:
     "Download media from Instagram and X/Twitter. Free and no login required.",

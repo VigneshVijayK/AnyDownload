@@ -230,10 +230,16 @@ async function tryDirectApi(videoId: string): Promise<{ items: MediaItem[]; titl
 
 const PIPED_INSTANCES = [
   "https://pipedapi.kavin.rocks",
-  "https://pipedapi.smnz.de",
+  "https://pipedapi-libre.kavin.rocks",
+  "https://pipedapi.leptons.xyz",
+  "https://pipedapi.nosebs.ru",
+  "https://piped-api.privacy.com.de",
   "https://pipedapi.adminforge.de",
-  "https://pipedapi.lunar.icu",
-  "https://pipedapi.privacydev.net",
+  "https://api.piped.yt",
+  "https://pipedapi.owo.si",
+  "https://pipedapi.ducks.party",
+  "https://pipedapi.drgns.space",
+  "https://api.piped.private.coffee",
 ];
 
 async function tryPiped(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {
@@ -265,12 +271,25 @@ async function tryPiped(videoId: string): Promise<{ items: MediaItem[]; title: s
 // ── Strategy 5: Invidious API (alternative proxy frontend) ─────────
 
 const INVIDIOUS_INSTANCES = [
-  "https://inv.nadeko.net",
-  "https://invidious.snopyta.org",
   "https://yewtu.be",
-  "https://inv.tux.pizza",
-  "https://invidious.privacydev.net",
   "https://vid.puffyan.us",
+  "https://yt.artemislena.eu",
+  "https://invidious.flokinet.to",
+  "https://invidious.tiekoetter.com",
+  "https://invidious.slipfox.xyz",
+  "https://invidious.projectsegfau.lt",
+  "https://inv.pistasjis.net",
+  "https://vid.priv.au",
+  "https://iv.melmac.space",
+  "https://iv.ggtyler.dev",
+  "https://inv.zzls.xyz",
+  "https://invidious.protokolla.fi",
+  "https://iv.nboeck.de",
+  "https://invidious.private.coffee",
+  "https://yt.drgnz.club",
+  "https://invidious.asir.dev",
+  "https://iv.datura.network",
+  "https://invidious.fdn.fr",
 ];
 
 async function tryInvidious(videoId: string): Promise<{ items: MediaItem[]; title: string } | null> {

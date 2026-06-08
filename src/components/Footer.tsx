@@ -21,8 +21,7 @@ export default function Footer() {
   }, [showQr, qrDataUrl]);
 
   function handleCoffeeClick() {
-    const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
+    if (window.innerWidth < 768) {
       window.location.href = UPI_URL;
     } else {
       setShowQr(true);

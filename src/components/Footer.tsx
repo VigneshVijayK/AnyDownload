@@ -35,18 +35,19 @@ export default function Footer() {
       {showQr && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.55)" }}
+          style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={() => setShowQr(false)}
         >
           <div
-            className="glass rounded-2xl p-6 sm:p-8 text-center max-w-[300px] animate-scale-in"
+            className="rounded-2xl p-6 sm:p-8 text-center max-w-[320px] animate-scale-in"
+            style={{ background: "var(--bg-primary, #1a1a2e)", border: "2px solid var(--border, #333)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center mb-3">
+            <div className="flex justify-center mb-4">
               {qrDataUrl ? (
-                <img src={qrDataUrl} alt="UPI QR code" className="w-[200px] h-[200px] sm:w-[220px] sm:h-[220px] rounded-lg" />
+                <img src={qrDataUrl} alt="UPI QR code" className="w-[220px] h-[220px] sm:w-[240px] sm:h-[240px] rounded-xl" />
               ) : (
-                <div className="w-[200px] h-[200px] sm:w-[220px] sm:h-[220px] rounded-lg flex items-center justify-center" style={{ background: "var(--bg-inset)" }}>
+                <div className="w-[220px] h-[220px] sm:w-[240px] sm:h-[240px] rounded-xl flex items-center justify-center" style={{ background: "var(--bg-inset)" }}>
                   <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24" style={{ color: "var(--text-muted)" }}>
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -54,24 +55,26 @@ export default function Footer() {
                 </div>
               )}
             </div>
-            <p className="text-xs font-semibold text-text-primary mb-1">Scan QR or copy UPI ID</p>
-            <p className="text-[11px] text-text-muted break-all mb-2">{UPI_ID}</p>
-            <button
-              onClick={handleCopyUpiId}
-              type="button"
-              className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-300 hover:brightness-110 mb-3"
-              style={{ background: "var(--bg-card)", color: "var(--text-secondary)" }}
-            >
-              Copy UPI ID
-            </button>
-            <button
-              onClick={() => setShowQr(false)}
-              type="button"
-              className="px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-300 hover:brightness-110"
-              style={{ background: "var(--bg-card)", color: "var(--text-secondary)" }}
-            >
-              Close
-            </button>
+            <p className="text-sm font-bold text-text-primary mb-1">Scan QR or copy UPI ID</p>
+            <p className="text-xs font-mono font-semibold text-text-primary break-all mb-3 p-2 rounded-lg" style={{ background: "var(--bg-inset)" }}>{UPI_ID}</p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={handleCopyUpiId}
+                type="button"
+                className="px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-300 hover:brightness-125"
+                style={{ background: "var(--color-insta-pink, #e1306c)", color: "#fff" }}
+              >
+                Copy UPI ID
+              </button>
+              <button
+                onClick={() => setShowQr(false)}
+                type="button"
+                className="px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-300 hover:brightness-125"
+                style={{ background: "var(--bg-card)", color: "var(--text-secondary)" }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

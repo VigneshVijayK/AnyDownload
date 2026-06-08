@@ -84,30 +84,36 @@ function extractVideoId(input: string): string | null {
 async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: string } | null> {
   const ytDlp = findYtDlp();
   if (!ytDlp) return null;
-  try {
-    const raw = execSync(`${ytDlp} -j --no-check-certificate "${videoUrl}"`, {
-      timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
-    });
-    const data = JSON.parse(raw);
-    if (!data?.formats) return null;
-
-    const thumbnail = data.thumbnail || "";
-    const title = data.title || "YouTube Video";
-    const seen = new Set<number>();
-    const items: MediaItem[] = [];
-
-    for (const f of (data.formats || []).sort((a: any, b: any) => (parseInt(b.height) || 0) - (parseInt(a.height) || 0))) {
-      if (!f.url || !f.height || !f.acodec || f.acodec === "none") continue;
-      const res = parseInt(f.height);
-      if (res > 0 && !seen.has(res)) { seen.add(res); items.push({ type: "video", thumbnail, url: f.url, label: `Video ${QUALITY[String(res)] || `${res}p`}` }); }
-    }
-
-    const audio = (data.formats || []).filter((f: any) => f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none") && f.url)
-      .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
-    if (audio.length) items.push({ type: "video", thumbnail, url: audio[0].url, label: `MP3 (${audio[0].abr || 128}kbps)` });
-
-    return items.length ? { items, title } : null;
-  } catch { return null; }
+  const clients = [
+    "",
+    "youtube:player_client=android",
+    "youtube:player_client=ios",
+    "youtube:player_client=web_embedded",
+  ];
+  for (const client of clients) {
+    try {
+      const args = client ? `--extractor-args "${client}"` : "";
+      const raw = execSync(`${ytDlp} --js-runtimes node -j --no-check-certificate ${args} "${videoUrl}"`, {
+        timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
+      });
+      const data = JSON.parse(raw);
+      if (!data?.formats) continue;
+      const thumbnail = data.thumbnail || "";
+      const title = data.title || "YouTube Video";
+      const seen = new Set<number>();
+      const items: MediaItem[] = [];
+      for (const f of (data.formats || []).sort((a: any, b: any) => (parseInt(b.height) || 0) - (parseInt(a.height) || 0))) {
+        if (!f.url || !f.height || !f.acodec || f.acodec === "none") continue;
+        const res = parseInt(f.height);
+        if (res > 0 && !seen.has(res)) { seen.add(res); items.push({ type: "video", thumbnail, url: f.url, label: `Video ${QUALITY[String(res)] || `${res}p`}` }); }
+      }
+      const audio = (data.formats || []).filter((f: any) => f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none") && f.url)
+        .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
+      if (audio.length) items.push({ type: "video", thumbnail, url: audio[0].url, label: `MP3 (${audio[0].abr || 128}kbps)` });
+      if (items.length) return { items, title };
+    } catch {}
+  }
+  return null;
 }
 
 // ── Strategy 2: youtubei.js ─────────────────────────────────────────

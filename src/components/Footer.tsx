@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { VERSION } from "@/lib/version";
 
-const UPI_URL = "upi://pay?pa=vignesh.1604-4@waicici&pn=Developer&tn=Support+Development&cu=INR";
+const UPI_URL = "upi://pay?pa=vignesh.1604-4@waicici&pn=Developer&tn=Support+Development&am=1&cu=INR";
 
 export default function Footer() {
   const [showQr, setShowQr] = useState(false);

@@ -8,6 +8,7 @@ export type YouTubeInput = { type: string; id: string };
 
 const BIN_DIR = join(process.cwd(), "bin");
 const YT_DLP_PATH = join(BIN_DIR, "yt-dlp");
+const COOKIES_PATH = join(process.cwd(), "cookies.txt");
 
 // ── yt-dlp download + lookup ───────────────────────────────────────
 
@@ -92,8 +93,10 @@ async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: 
   ];
   for (const client of clients) {
     try {
+      const hasCookies = existsSync(COOKIES_PATH);
+      const cookieFlag = hasCookies ? `--cookies "${COOKIES_PATH}"` : "";
       const args = client ? `--extractor-args "${client}"` : "";
-      const raw = execSync(`${ytDlp} -j --no-check-certificate ${args} "${videoUrl}"`, {
+      const raw = execSync(`${ytDlp} ${cookieFlag} -j --no-check-certificate ${args} "${videoUrl}"`, {
         timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
       });
       const data = JSON.parse(raw);

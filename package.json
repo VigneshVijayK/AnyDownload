@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "node -e \"require('fs').existsSync('bin/yt-dlp')||require('child_process').execSync('mkdir -p bin && curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o bin/yt-dlp && chmod +x bin/yt-dlp',{stdio:'pipe',timeout:30000})\" || true"
+    "postinstall": "pip3 install --break-system-packages yt-dlp 2>/dev/null; pip3 install yt-dlp 2>/dev/null; true"
   },
   "dependencies": {
     "next": "16.2.6",

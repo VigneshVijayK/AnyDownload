@@ -1,58 +1,26 @@
 import { execSync } from "child_process";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync } from "fs";
 import { join } from "path";
 import { Innertube } from "youtubei.js";
 import type { MediaItem } from "@/lib/types";
 
 export type YouTubeInput = { type: string; id: string };
 
-const BIN_DIR = join(process.cwd(), "bin");
-const YT_DLP_PATH = join(BIN_DIR, "yt-dlp");
 const COOKIES_PATH = join(process.cwd(), "cookies.txt");
 
 // ── yt-dlp lookup ──────────────────────────────────────────────────
 
 function findYtDlp(): string {
-  // Prefer system yt-dlp (Python version via pip) over standalone binary
   try { execSync("yt-dlp --version", { stdio: "pipe", encoding: "utf-8" }); return "yt-dlp"; } catch {}
-  if (existsSync(YT_DLP_PATH)) return YT_DLP_PATH;
   return "";
 }
 
-// Try to install yt-dlp at runtime if missing
 async function ensureYtDlp(): Promise<boolean> {
   if (findYtDlp()) return true;
   try {
-    // Try pip first
-    try { execSync("pip3 install --break-system-packages yt-dlp 2>/dev/null || pip3 install yt-dlp 2>/dev/null", { stdio: "pipe", timeout: 60000 }); if (findYtDlp()) return true; } catch {}
-    // Fall back to standalone binary
-    mkdirSync(BIN_DIR, { recursive: true });
-    const urls = [
-      "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux",
-      "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
-    ];
-    for (const url of urls) {
-      try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-        if (!res.ok || !res.body) continue;
-        const chunks: Uint8Array[] = [];
-        const reader = res.body.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-        }
-        const buf = new Uint8Array(
-          chunks.reduce((acc, c) => acc + c.length, 0),
-        );
-        let offset = 0;
-        for (const c of chunks) { buf.set(c, offset); offset += c.length; }
-        writeFileSync(YT_DLP_PATH, Buffer.from(buf), { mode: 0o755 });
-        return existsSync(YT_DLP_PATH);
-      } catch {}
-    }
+    execSync("pip3 install --break-system-packages yt-dlp 2>/dev/null || pip3 install yt-dlp 2>/dev/null", { stdio: "pipe", timeout: 60000 });
   } catch {}
-  return false;
+  return findYtDlp() !== "";
 }
 
 // ── helpers ─────────────────────────────────────────────────────────

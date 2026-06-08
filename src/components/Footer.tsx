@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { VERSION } from "@/lib/version";
 
-const UPI_URL = "upi://pay?pa=8590011604@iob&pn=Developer&tn=Support+Development&cu=INR";
+const UPI_URL = "upi://pay?pa=vigneshvijayk@iob&pn=Developer&tn=Support+Development&cu=INR";
 
 export default function Footer() {
   const [showQr, setShowQr] = useState(false);
@@ -53,7 +53,7 @@ export default function Footer() {
               )}
             </div>
             <p className="text-xs font-semibold text-text-primary mb-1">Scan to support</p>
-            <p className="text-[11px] text-text-muted break-all mb-3">8590011604@iob</p>
+            <p className="text-[11px] text-text-muted break-all mb-3">vigneshvijayk@iob</p>
             <button
               onClick={() => setShowQr(false)}
               type="button"

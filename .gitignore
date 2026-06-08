@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 178083*.js
 178083*.html
+bin/

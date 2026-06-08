@@ -10,18 +10,22 @@ const BIN_DIR = join(process.cwd(), "bin");
 const YT_DLP_PATH = join(BIN_DIR, "yt-dlp");
 const COOKIES_PATH = join(process.cwd(), "cookies.txt");
 
-// ── yt-dlp download + lookup ───────────────────────────────────────
+// ── yt-dlp lookup ──────────────────────────────────────────────────
 
 function findYtDlp(): string {
-  if (existsSync(YT_DLP_PATH)) return YT_DLP_PATH;
+  // Prefer system yt-dlp (Python version via pip) over standalone binary
   try { execSync("yt-dlp --version", { stdio: "pipe", encoding: "utf-8" }); return "yt-dlp"; } catch {}
+  if (existsSync(YT_DLP_PATH)) return YT_DLP_PATH;
   return "";
 }
 
-// Try to download yt-dlp at runtime if missing
+// Try to install yt-dlp at runtime if missing
 async function ensureYtDlp(): Promise<boolean> {
   if (findYtDlp()) return true;
   try {
+    // Try pip first
+    try { execSync("pip3 install --break-system-packages yt-dlp 2>/dev/null || pip3 install yt-dlp 2>/dev/null", { stdio: "pipe", timeout: 60000 }); if (findYtDlp()) return true; } catch {}
+    // Fall back to standalone binary
     mkdirSync(BIN_DIR, { recursive: true });
     const urls = [
       "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux",
@@ -93,24 +97,30 @@ async function tryYtDlp(videoUrl: string): Promise<{ items: MediaItem[]; title: 
   ];
   for (const client of clients) {
     try {
+      const nodePath = process.execPath;
       const hasCookies = existsSync(COOKIES_PATH);
       const cookieFlag = hasCookies ? `--cookies "${COOKIES_PATH}"` : "";
+      const jsRuntimeFlag = `--js-runtimes node:${nodePath}`;
       const args = client ? `--extractor-args "${client}"` : "";
-      const raw = execSync(`${ytDlp} ${cookieFlag} -j --no-check-certificate ${args} "${videoUrl}"`, {
+      const raw = execSync(`${ytDlp} ${cookieFlag} ${jsRuntimeFlag} -j --no-check-certificate ${args} "${videoUrl}"`, {
         timeout: 30000, maxBuffer: 1024 * 1024 * 5, encoding: "utf-8",
       });
       const data = JSON.parse(raw);
       if (!data?.formats) continue;
       const thumbnail = data.thumbnail || "";
       const title = data.title || "YouTube Video";
-      const seen = new Set<number>();
+      const seenUrls = new Set<string>();
       const items: MediaItem[] = [];
       for (const f of (data.formats || []).sort((a: any, b: any) => (parseInt(b.height) || 0) - (parseInt(a.height) || 0))) {
-        if (!f.url || !f.height || !f.acodec || f.acodec === "none") continue;
-        const res = parseInt(f.height);
-        if (res > 0 && !seen.has(res)) { seen.add(res); items.push({ type: "video", thumbnail, url: f.url, label: `Video ${QUALITY[String(res)] || `${res}p`}` }); }
+        if (!f.url || seenUrls.has(f.url)) continue;
+        const hasVideo = f.vcodec && f.vcodec !== "none";
+        const hasAudio = f.acodec && f.acodec !== "none";
+        if (hasVideo) {
+          seenUrls.add(f.url);
+          items.push({ type: "video", thumbnail, url: f.url, label: `Video ${QUALITY[String(f.height)] || `${f.height}p`}` });
+        }
       }
-      const audio = (data.formats || []).filter((f: any) => f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none") && f.url)
+      const audio = (data.formats || []).filter((f: any) => f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none") && f.url && !seenUrls.has(f.url))
         .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0));
       if (audio.length) items.push({ type: "video", thumbnail, url: audio[0].url, label: `MP3 (${audio[0].abr || 128}kbps)` });
       if (items.length) return { items, title };
